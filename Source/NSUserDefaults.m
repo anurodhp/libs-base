@@ -1507,13 +1507,13 @@ newLanguages(NSArray *oldNames)
   NS_DURING
     {
       NSUInteger	count = [_searchList count];
-      IMP		pImp;
-      IMP		tImp;
+      id (*pImp)(id, SEL, id);
+      id (*tImp)(id, SEL, id);
       NSUInteger	index;
       GS_BEGINITEMBUF(items, count, NSObject*)
 
-      pImp = [_persDomains methodForSelector: objectForKeySel];
-      tImp = [_tempDomains methodForSelector: objectForKeySel];
+      pImp = (id (*)(id, SEL, id))[_persDomains methodForSelector: objectForKeySel];
+      tImp = (id (*)(id, SEL, id))[_tempDomains methodForSelector: objectForKeySel];
       [_searchList getObjects: items];
       for (index = 0; index < count; index++)
 	{
@@ -2241,20 +2241,20 @@ static BOOL isPlistObject(id o)
           NSMutableDictionary	*dictRep;
           id			obj;
           id			dict;
-          IMP			nImp;
-          IMP			pImp;
-          IMP			tImp;
-          IMP			addImp;
+          id (*nImp)(id, SEL);
+          id (*pImp)(id, SEL, id);
+          id (*tImp)(id, SEL, id);
+          void (*addImp)(id, SEL, id);
 
-          pImp = [_persDomains methodForSelector: objectForKeySel];
-          tImp = [_tempDomains methodForSelector: objectForKeySel];
+          pImp = (id (*)(id, SEL, id))[_persDomains methodForSelector: objectForKeySel];
+          tImp = (id (*)(id, SEL, id))[_tempDomains methodForSelector: objectForKeySel];
 
           enumerator = [_searchList reverseObjectEnumerator];
-          nImp = [enumerator methodForSelector: nextObjectSel];
+          nImp = (id (*)(id, SEL))[enumerator methodForSelector: nextObjectSel];
 
           dictRep = [NSMutableDictionaryClass alloc];
           dictRep = [dictRep initWithCapacity: 512];
-          addImp = [dictRep methodForSelector: addSel];
+          addImp = (void (*)(id, SEL, id))[dictRep methodForSelector: addSel];
 
           while ((obj = (*nImp)(enumerator, nextObjectSel)) != nil)
 	    {

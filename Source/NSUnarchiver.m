@@ -26,7 +26,9 @@
 
 #import "common.h"
 
-#if !defined (__GNU_LIBOBJC__)
+#if GS_OBJC4_RUNTIME
+#  include "GSObjC4Encoding.h"
+#elif !defined (__GNU_LIBOBJC__)
 #  include <objc/encoding.h>
 #endif
 
@@ -496,7 +498,7 @@ static unsigned	encodingVersion;
   self = [super init];
   if (self)
     {
-      dValImp = [self methodForSelector: dValSel];
+      dValImp = (void (*)(id, SEL, const char*, void*))[self methodForSelector: dValSel];
       zone = [self zone];
       /*
        *	If we are not deserializing directly from the data object
@@ -505,7 +507,7 @@ static unsigned	encodingVersion;
       if ([self directDataAccess] == NO)
 	{
 	  src = self;		/* Default object to handle serialisation */
-	  desImp = [src methodForSelector: desSel];
+	  desImp = (void (*)(id, SEL, void*, const char*, unsigned int*, id))[src methodForSelector: desSel];
 	  tagImp = (void (*)(id, SEL, unsigned char*, unsigned*, unsigned*))
 	      [src methodForSelector: tagSel];
 	}
@@ -1738,7 +1740,7 @@ scalarSize(char type)
 	      /*
 	       *	Cache methods for deserialising from the data object.
 	       */
-	      desImp = [src methodForSelector: desSel];
+	      desImp = (void (*)(id, SEL, void*, const char*, unsigned int*, id))[src methodForSelector: desSel];
 	      tagImp = (void (*)(id, SEL, unsigned char*, unsigned*, unsigned*))
 		  [src methodForSelector: tagSel];
 	    }

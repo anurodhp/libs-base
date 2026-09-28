@@ -128,8 +128,8 @@ static NSLock		*attrLock = nil;
 static GSIMapTable_t	attrMap;
 static SEL		lockSel;
 static SEL		unlockSel;
-static IMP		lockImp;
-static IMP		unlockImp;
+static void (*lockImp)(id, SEL);
+static void (*unlockImp)(id, SEL);
 
 #define	ALOCK()	if (attrLock != nil) (*lockImp)(attrLock, lockSel)
 #define	AUNLOCK() if (attrLock != nil) (*unlockImp)(attrLock, unlockSel)
@@ -235,8 +235,8 @@ unCacheAttributes(NSDictionary *attrs)
       attrLock = [NSLock new];
       lockSel = @selector(lock);
       unlockSel = @selector(unlock);
-      lockImp = [attrLock methodForSelector: lockSel];
-      unlockImp = [attrLock methodForSelector: unlockSel];
+      lockImp = (void (*)(id, SEL))[attrLock methodForSelector: lockSel];
+      unlockImp = (void (*)(id, SEL))[attrLock methodForSelector: unlockSel];
       GSIMapInitWithZoneAndCapacity(&attrMap, NSDefaultMallocZone(), 32);
     }
 }
@@ -311,11 +311,11 @@ static SEL	insSel;
 static SEL	oatSel;
 static SEL	remSel;
 
-static IMP	infImp;
+static id (*infImp)(id, SEL, NSZone*, id, unsigned);
 static void	(*addImp)(NSMutableArray*,SEL,id);
 static unsigned (*cntImp)(NSArray*,SEL);
 static void	(*insImp)(NSMutableArray*,SEL,id,unsigned);
-static IMP	oatImp;
+static id (*oatImp)(id, SEL, NSUInteger);
 static void	(*remImp)(NSMutableArray*,SEL,unsigned);
 
 #define	NEWINFO(Z,O,L)	((*infImp)(infCls, infSel, (Z), (O), (L)))
@@ -464,7 +464,7 @@ _attributesAtIndexEffectiveRange(
       remSel = @selector(removeObjectAtIndex:);
 
       infCls = [GSAttrInfo class];
-      infImp = [infCls methodForSelector: infSel];
+      infImp = (id (*)(id, SEL, NSZone*, id, unsigned))[infCls methodForSelector: infSel];
 
       d = [NSDictionary new];
       blank = NEWINFO(NSDefaultMallocZone(), d, 0);
@@ -477,7 +477,7 @@ _attributesAtIndexEffectiveRange(
       cntImp = (unsigned (*)(NSArray*,SEL))[a methodForSelector: cntSel];
       insImp = (void (*)(NSMutableArray*,SEL,id,unsigned))
 	[a methodForSelector: insSel];
-      oatImp = [a methodForSelector: oatSel];
+      oatImp = (id (*)(id, SEL, NSUInteger))[a methodForSelector: oatSel];
       remImp = (void (*)(NSMutableArray*,SEL,unsigned))
 	[a methodForSelector: remSel];
       RELEASE(a);

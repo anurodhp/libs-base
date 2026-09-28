@@ -161,9 +161,9 @@
 {
   unsigned	count = map.nodeCount;
   SEL		sel1 = @selector(encodeObject:);
-  IMP		imp1 = [aCoder methodForSelector: sel1];
+  void (*imp1)(id, SEL, id) = (void (*)(id, SEL, id))[aCoder methodForSelector: sel1];
   SEL		sel2 = @selector(encodeValueOfObjCType:at:);
-  IMP		imp2 = [aCoder methodForSelector: sel2];
+  void (*imp2)(id, SEL, const char*, const void*) = (void (*)(id, SEL, const char*, const void*))[aCoder methodForSelector: sel2];
   const char	*type = @encode(unsigned);
   GSIMapEnumerator_t	enumerator = GSIMapEnumeratorForMap(&map);
   GSIMapNode 		node = GSIMapEnumeratorNextNode(&enumerator);
@@ -202,7 +202,7 @@
   id		value;
   NSUInteger	valcnt;
   SEL		sel = @selector(decodeValueOfObjCType:at:);
-  IMP		imp = [aCoder methodForSelector: sel];
+  void (*imp)(id, SEL, const char*, void*) = (void (*)(id, SEL, const char*, void*))[aCoder methodForSelector: sel];
   const char	*utype = @encode(unsigned);
   const char	*otype = @encode(id);
 

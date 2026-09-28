@@ -67,7 +67,7 @@ extern void     GSPropertyListMake(id,NSDictionary*,BOOL,BOOL,unsigned,id*);
 {
   NSArray	*array;
   NSUInteger	pos;
-  IMP		get;
+  id		(*get)(id, SEL, NSUInteger);
   NSUInteger	(*cnt)(NSArray*, SEL);
 }
 - (id) initWithArray: (NSArray*)anArray;
@@ -437,7 +437,7 @@ static SEL	rlSel;
    */
   if (count > 0)
     {
-      IMP	imp = [self methodForSelector: @selector(objectAtIndex:)];
+      id (*imp)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: @selector(objectAtIndex:)];
       int	p = state->state;
       int	i;
 
@@ -513,7 +513,7 @@ static SEL	rlSel;
 - (void) getObjects: (__unsafe_unretained id[])aBuffer
 {
   NSUInteger i, c = [self count];
-  IMP	get = [self methodForSelector: oaiSel];
+  id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: oaiSel];
 
   for (i = 0; i < c; i++)
     aBuffer[i] = (*get)(self, oaiSel, i);
@@ -526,7 +526,7 @@ static SEL	rlSel;
 - (void) getObjects: (__unsafe_unretained id[])aBuffer range: (NSRange)aRange
 {
   NSUInteger i, j = 0, c = [self count], e = aRange.location + aRange.length;
-  IMP	get = [self methodForSelector: oaiSel];
+  id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: oaiSel];
 
   GS_RANGE_CHECK(aRange, c);
 
@@ -552,7 +552,7 @@ static SEL	rlSel;
 
   if (c > 0)
     {
-      IMP	get = [self methodForSelector: oaiSel];
+      id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: oaiSel];
       NSUInteger	i;
 
       for (i = 0; i < c; i++)
@@ -569,7 +569,7 @@ static SEL	rlSel;
 - (NSUInteger) indexOfObjectIdenticalTo: anObject inRange: (NSRange)aRange
 {
   NSUInteger i, e = aRange.location + aRange.length, c = [self count];
-  IMP	get = [self methodForSelector: oaiSel];
+  id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: oaiSel];
 
   GS_RANGE_CHECK(aRange, c);
 
@@ -591,7 +591,7 @@ static SEL	rlSel;
   if (c > 0 && anObject != nil)
     {
       NSUInteger	i;
-      IMP	get = [self methodForSelector: oaiSel];
+      id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: oaiSel];
       BOOL	(*eq)(id, SEL, id)
 	= (BOOL (*)(id, SEL, id))[anObject methodForSelector: eqSel];
 
@@ -610,7 +610,7 @@ static SEL	rlSel;
 - (NSUInteger) indexOfObject: (id)anObject inRange: (NSRange)aRange
 {
   NSUInteger i, e = aRange.location + aRange.length, c = [self count];
-  IMP	get = [self methodForSelector: oaiSel];
+  id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: oaiSel];
   BOOL	(*eq)(id, SEL, id)
     = (BOOL (*)(id, SEL, id))[anObject methodForSelector: eqSel];
 
@@ -980,8 +980,8 @@ static SEL	rlSel;
     return NO;
   if (c > 0)
     {
-      IMP	get0 = [self methodForSelector: oaiSel];
-      IMP	get1 = [otherArray methodForSelector: oaiSel];
+      id (*get0)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: oaiSel];
+      id (*get1)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[otherArray methodForSelector: oaiSel];
 
       for (i = 0; i < c; i++)
 	if (![(*get0)(self, oaiSel, i) isEqual: (*get1)(otherArray, oaiSel, i)])
@@ -1022,7 +1022,7 @@ static SEL	rlSel;
 
   if (c > 0)
     {
-      IMP	        get = [self methodForSelector: oaiSel];
+      id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: oaiSel];
       NSUInteger	i = 0;
 
       while (i < c)
@@ -1050,7 +1050,7 @@ static SEL	rlSel;
 
   if (c > 0)
     {
-      IMP	        get = [self methodForSelector: oaiSel];
+      id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: oaiSel];
       NSUInteger	i = 0;
 
       while (i < c)
@@ -1283,8 +1283,8 @@ compare(id elem1, id elem2, void* context)
   NSUInteger i, c = [self count];
   NSMutableArray *a = AUTORELEASE([[NSMutableArray alloc] initWithCapacity: 1]);
   Class	cls = [NSString class];
-  IMP	get = [self methodForSelector: oaiSel];
-  IMP	add = [a methodForSelector: addSel];
+  id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: oaiSel];
+  void (*add)(id, SEL, id) = (void (*)(id, SEL, id))[a methodForSelector: addSel];
 
   for (i = 0; i < c; i++)
     {
@@ -2204,7 +2204,7 @@ compare(id elem1, id elem2, void* context)
   if (count > 0)
     {
       NSUInteger	i;
-      IMP	add = [self methodForSelector: addSel];
+      void (*add)(id, SEL, id) = (void (*)(id, SEL, id))[self methodForSelector: addSel];
 
       for (i = 0; i < count; i++)
 	(*add)(self, addSel, objects[i]);
@@ -2240,8 +2240,8 @@ compare(id elem1, id elem2, void* context)
   i = [self count];
   if (i > 0)
     {
-      IMP	rem = 0;
-      IMP	get = [self methodForSelector: oaiSel];
+      void (*rem)(id, SEL, NSUInteger) = 0;
+      id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: oaiSel];
 
       while (i-- > 0)
 	{
@@ -2251,7 +2251,7 @@ compare(id elem1, id elem2, void* context)
 	    {
 	      if (rem == 0)
 		{
-		  rem = [self methodForSelector: remSel];
+		  rem = (void (*)(id, SEL, NSUInteger))[self methodForSelector: remSel];
 		}
 	      (*rem)(self, remSel, i);
 	    }
@@ -2283,8 +2283,8 @@ compare(id elem1, id elem2, void* context)
     }
   if (i > s)
     {
-      IMP	rem = 0;
-      IMP	get = [self methodForSelector: oaiSel];
+      void (*rem)(id, SEL, NSUInteger) = 0;
+      id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: oaiSel];
       BOOL	(*eq)(id, SEL, id)
 	= (BOOL (*)(id, SEL, id))[anObject methodForSelector: eqSel];
 
@@ -2296,7 +2296,7 @@ compare(id elem1, id elem2, void* context)
 	    {
 	      if (rem == 0)
 		{
-		  rem = [self methodForSelector: remSel];
+		  rem = (void (*)(id, SEL, NSUInteger))[self methodForSelector: remSel];
 		  /*
 		   * We need to retain the object so that when we remove the
 		   * first equal object we don't get left with a bad object
@@ -2338,8 +2338,8 @@ compare(id elem1, id elem2, void* context)
     }
   if (i > s)
     {
-      IMP	rem = 0;
-      IMP	get = [self methodForSelector: oaiSel];
+      void (*rem)(id, SEL, NSUInteger) = 0;
+      id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: oaiSel];
 
       while (i-- > s)
 	{
@@ -2349,7 +2349,7 @@ compare(id elem1, id elem2, void* context)
 	    {
 	      if (rem == 0)
 		{
-		  rem = [self methodForSelector: remSel];
+		  rem = (void (*)(id, SEL, NSUInteger))[self methodForSelector: remSel];
 		}
 	      (*rem)(self, remSel, i);
 	    }
@@ -2373,8 +2373,8 @@ compare(id elem1, id elem2, void* context)
   i = [self count];
   if (i > 0)
     {
-      IMP	rem = 0;
-      IMP	get = [self methodForSelector: oaiSel];
+      void (*rem)(id, SEL, NSUInteger) = 0;
+      id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: oaiSel];
       BOOL	(*eq)(id, SEL, id)
 	= (BOOL (*)(id, SEL, id))[anObject methodForSelector: eqSel];
 
@@ -2386,7 +2386,7 @@ compare(id elem1, id elem2, void* context)
 	    {
 	      if (rem == 0)
 		{
-		  rem = [self methodForSelector: remSel];
+		  rem = (void (*)(id, SEL, NSUInteger))[self methodForSelector: remSel];
 		  /*
 		   * We need to retain the object so that when we remove the
 		   * first equal object we don't get left with a bad object
@@ -2413,7 +2413,7 @@ compare(id elem1, id elem2, void* context)
 
   if (c > 0)
     {
-      IMP	remLast = [self methodForSelector: rlSel];
+      void (*remLast)(id, SEL) = (void (*)(id, SEL))[self methodForSelector: rlSel];
 
       while (c--)
 	{
@@ -2432,8 +2432,8 @@ compare(id elem1, id elem2, void* context)
   if (c > 0)
     {
       NSUInteger	i;
-      IMP	get = [otherArray methodForSelector: oaiSel];
-      IMP	add = [self methodForSelector: addSel];
+      id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[otherArray methodForSelector: oaiSel];
+      void (*add)(id, SEL, id) = (void (*)(id, SEL, id))[self methodForSelector: addSel];
 
       for (i = 0; i < c; i++)
 	(*add)(self, addSel,  (*get)(otherArray, oaiSel, i));
@@ -2514,7 +2514,7 @@ compare(id elem1, id elem2, void* context)
 
       if (to > 0)
 	{
-	  IMP	rem = [self methodForSelector: remSel];
+	  void (*rem)(id, SEL, NSUInteger) = (void (*)(id, SEL, NSUInteger))[self methodForSelector: remSel];
 
 	  while (to--)
 	    {
@@ -2547,8 +2547,9 @@ compare(id elem1, id elem2, void* context)
       if ((c = [otherArray count]) > 0)
 	{
 	  NSUInteger	i;
-	  IMP	get = [otherArray methodForSelector: oaiSel];
-	  IMP	rem = [self methodForSelector: @selector(removeObject:)];
+	  id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[otherArray methodForSelector: oaiSel];
+	  void	(*rem)(id, SEL, id)
+	    = (void (*)(id, SEL, id))[self methodForSelector: @selector(removeObject:)];
 
 	  /* Guard otherArray in case it's a subclass which does not
 	   * retain its contents; in that case it would be possible
@@ -2582,7 +2583,7 @@ compare(id elem1, id elem2, void* context)
 
   if (i > s)
     {
-      IMP	rem = [self methodForSelector: remSel];
+      void (*rem)(id, SEL, NSUInteger) = (void (*)(id, SEL, NSUInteger))[self methodForSelector: remSel];
 
       while (i-- > s)
 	{
@@ -2684,7 +2685,7 @@ compare(id elem1, id elem2, void* context)
       array = anArray;
       IF_NO_ARC(RETAIN(array);)
       pos = 0;
-      get = [array methodForSelector: oaiSel];
+      get = (id (*)(id, SEL, NSUInteger))[array methodForSelector: oaiSel];
       cnt = (NSUInteger (*)(NSArray*, SEL))[array methodForSelector: countSel];
     }
   return self;

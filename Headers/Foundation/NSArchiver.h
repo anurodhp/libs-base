@@ -46,11 +46,11 @@ GS_EXPORT_CLASS
 @private
   NSMutableData	*_data;		/* Data to write into.		*/
   id		_dst;		/* Serialization destination.	*/
-  IMP		_serImp;	/* Method to serialize with.	*/
-  IMP		_tagImp;	/* Serialize a type tag.	*/
-  IMP		_xRefImp;	/* Serialize a crossref.	*/
-  IMP		_eObjImp;	/* Method to encode an id.	*/
-  IMP		_eValImp;	/* Method to encode others.	*/
+  void		(*_serImp)(id, SEL, const void*, const char*, id);	/* Method to serialize with.	*/
+  void		(*_tagImp)(id, SEL, unsigned char);	/* Serialize a type tag.	*/
+  void		(*_xRefImp)(id, SEL, unsigned char, unsigned int);	/* Serialize a crossref.	*/
+  void		(*_eObjImp)(id, SEL, id);	/* Method to encode an id.	*/
+  void		(*_eValImp)(id, SEL, const char*, const void*);	/* Method to encode others.	*/
 #ifndef	_IN_NSARCHIVER_M
 #define	GSIMapTable	void*
 #endif
@@ -167,9 +167,9 @@ GS_EXPORT_CLASS
   NSData		*data;		/* Data to write into.		*/
   Class			dataClass;	/* What sort of data is it?	*/
   id			src;		/* Deserialization source.	*/
-  IMP			desImp;		/* Method to deserialize with.	*/
+  void		(*desImp)(id, SEL, void*, const char*, unsigned int*, id);		/* Method to deserialize with.	*/
   void			(*tagImp)(id, SEL, unsigned char*, unsigned*,unsigned*);
-  IMP			dValImp;	/* Method to decode data with.	*/
+  void		(*dValImp)(id, SEL, const char*, void*);	/* Method to decode data with.	*/
 #ifndef	_IN_NSUNARCHIVER_M
 #define	GSIArray	void*
 #endif

@@ -64,6 +64,26 @@
 #import	"Foundation/NSObject.h"
 #import	"GNUstepBase/NSObject+GNUstepBase.h"
 
+#if	GS_OBJC4_RUNTIME
+#include <objc/runtime.h>
+#include <objc/message.h>
+/* The GNU runtimes' IMP lookup functions, for objc4. Both return the IMP
+ * that dispatch would run, including _objc_msgForward for an unimplemented
+ * selector, so forwarding still happens (objc4 runtime/objc-runtime-new.mm
+ * class_getMethodImplementation).
+ */
+static inline IMP
+objc_msg_lookup(id receiver, SEL sel)
+{
+  return receiver ? class_getMethodImplementation(object_getClass(receiver), sel) : 0;
+}
+static inline IMP
+objc_msg_lookup_super(struct objc_super *sup, SEL sel)
+{
+  return class_getMethodImplementation(sup->super_class, sel);
+}
+#endif
+
 /* These headers are used in almost every file.
  */
 #import	"Foundation/NSString.h"

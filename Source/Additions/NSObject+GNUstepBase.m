@@ -209,7 +209,7 @@ handleExit()
 	  msg = method_getImplementation(method);
 	  if (0 != msg)
 	    {
-	      (*msg)(tmp->obj, tmp->sel);
+	      ((void (*)(id, SEL))msg)(tmp->obj, tmp->sel);
 	    }
 	}
       else if (shouldCleanUp)
@@ -565,7 +565,7 @@ findMethods(id o, IMP *dea, IMP *rel, IMP *ret)
     {
       /* Not a tracked instance ... dealloc without logging.
        */
-      (*dealloc)(self, _cmd);
+      ((void (*)(id, SEL))dealloc)(self, _cmd);
     }
   else
     {
@@ -600,7 +600,7 @@ findMethods(id o, IMP *dea, IMP *rel, IMP *ret)
       GS_MUTEX_UNLOCK(trackLock);
       fprintf(stderr, "Tracking ownership -[%p dealloc] at %s.\n",
         self, stackTrace(2));
-      (*dealloc)(self, _cmd);
+      ((void (*)(id, SEL))dealloc)(self, _cmd);
     }
 }
 - (void) _replacementRelease
@@ -613,7 +613,7 @@ findMethods(id o, IMP *dea, IMP *rel, IMP *ret)
     {
       /* Not a tracked instance ... release without logging.
        */
-      (*release)(self, _cmd);
+      ((void (*)(id, SEL))release)(self, _cmd);
     }
   else
     {
@@ -622,7 +622,7 @@ findMethods(id o, IMP *dea, IMP *rel, IMP *ret)
       rc = (unsigned)[self retainCount];
       fprintf(stderr, "Tracking ownership -[%p release] %u->%u at %s.\n",
         self, rc, rc-1, stackTrace(2));
-      (*release)(self, _cmd);
+      ((void (*)(id, SEL))release)(self, _cmd);
     }
 }
 - (id) _replacementRetain
@@ -636,14 +636,14 @@ findMethods(id o, IMP *dea, IMP *rel, IMP *ret)
     {
       /* Not a tracked instance ... retain without logging.
        */
-      result = (*retain)(self, _cmd);
+      result = ((id (*)(id, SEL))retain)(self, _cmd);
     }
   else
     {
       unsigned		rc;
 
       rc = (unsigned)[self retainCount];
-      result = (*retain)(self, _cmd);
+      result = ((id (*)(id, SEL))retain)(self, _cmd);
       fprintf(stderr, "Tracking ownership -[%p retain] %u->%u at %s.\n",
         self, rc, (unsigned)[self retainCount], stackTrace(2));
     }

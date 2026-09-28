@@ -25,7 +25,9 @@
 
 #import "common.h"
 
-#if !defined (__GNU_LIBOBJC__)
+#if GS_OBJC4_RUNTIME
+#  include "GSObjC4Encoding.h"
+#elif !defined (__GNU_LIBOBJC__)
 #  include <objc/encoding.h>
 #endif
 
@@ -129,11 +131,11 @@ static Class	NSMutableDataMallocClass;
 	{
 	  _dst = self;
 	}
-      _serImp = [_dst methodForSelector: serSel];
-      _tagImp = [_dst methodForSelector: tagSel];
-      _xRefImp = [_dst methodForSelector: xRefSel];
-      _eObjImp = [self methodForSelector: eObjSel];
-      _eValImp = [self methodForSelector: eValSel];
+      _serImp = (void (*)(id, SEL, const void*, const char*, id))[_dst methodForSelector: serSel];
+      _tagImp = (void (*)(id, SEL, unsigned char))[_dst methodForSelector: tagSel];
+      _xRefImp = (void (*)(id, SEL, unsigned char, unsigned int))[_dst methodForSelector: xRefSel];
+      _eObjImp = (void (*)(id, SEL, id))[self methodForSelector: eObjSel];
+      _eValImp = (void (*)(id, SEL, const char*, const void*))[self methodForSelector: eValSel];
 
       [self resetArchiver];
 
@@ -824,7 +826,7 @@ static Class	NSMutableDataMallocClass;
 	  /*
 	   *	Special case - encode a nil pointer as a crossref of zero.
 	   */
-	  (*_tagImp)(_dst, tagSel, _GSC_ID | _GSC_XREF, _GSC_X_0);
+	  (*_tagImp)(_dst, tagSel, _GSC_ID | _GSC_XREF | _GSC_X_0);
 	}
     }
   else

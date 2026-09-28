@@ -413,6 +413,12 @@ ifeq ($(WITH_FFI),libffi)
   GNU_MFILES += cifframe.m
   BASE_MFILES += GSFFIInvocation.m
 endif
+
+# gnustep-base as the Foundation on Apple's objc4 (apple-gnu-gnu): the GNU
+# runtime type-encoding API that the sources use, which objc4 lacks.
+ifeq ($(OBJC_RUNTIME_LIB), apple)
+  GNU_CFILES += GSObjC4Encoding.c
+endif
 ifeq ($(WITH_FFI),ffcall)
   GNU_MFILES += callframe.m
   BASE_MFILES += GSFFCallInvocation.m

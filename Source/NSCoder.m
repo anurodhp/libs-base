@@ -27,7 +27,9 @@
 
 #import "common.h"
 
-#if !defined (__GNU_LIBOBJC__)
+#if GS_OBJC4_RUNTIME
+#  include "GSObjC4Encoding.h"
+#elif !defined (__GNU_LIBOBJC__)
 #  include <objc/encoding.h>
 #endif
 
@@ -112,9 +114,9 @@ static unsigned	systemVersion = MAX_SUPPORTED_SYSTEM_VERSION;
   unsigned	i;
   unsigned	size = objc_sizeof_type(type);
   const char	*where = array;
-  IMP		imp;
+  void (*imp)(id, SEL, const char*, const void*);
 
-  imp = [self methodForSelector: @selector(encodeValueOfObjCType:at:)];
+  imp = (void (*)(id, SEL, const char*, const void*))[self methodForSelector: @selector(encodeValueOfObjCType:at:)];
   for (i = 0; i < count; i++, where += size)
     {
       (*imp)(self, @selector(encodeValueOfObjCType:at:), type, where);
@@ -135,9 +137,9 @@ static unsigned	systemVersion = MAX_SUPPORTED_SYSTEM_VERSION;
 {
   const char		*type = @encode(unsigned char);
   const unsigned char	*where = (const unsigned char*)d;
-  IMP			imp;
+  void (*imp)(id, SEL, const char*, const void*);
 
-  imp = [self methodForSelector: @selector(encodeValueOfObjCType:at:)];
+  imp = (void (*)(id, SEL, const char*, const void*))[self methodForSelector: @selector(encodeValueOfObjCType:at:)];
   (*imp)(self, @selector(encodeValueOfObjCType:at:),
     @encode(unsigned), &l);
   while (l-- > 0)
@@ -185,9 +187,9 @@ static unsigned	systemVersion = MAX_SUPPORTED_SYSTEM_VERSION;
 - (void) encodeValuesOfObjCTypes: (const char*)types,...
 {
   va_list	ap;
-  IMP		imp;
+  void (*imp)(id, SEL, const char*, const void*);
 
-  imp = [self methodForSelector: @selector(encodeValueOfObjCType:at:)];
+  imp = (void (*)(id, SEL, const char*, const void*))[self methodForSelector: @selector(encodeValueOfObjCType:at:)];
   va_start(ap, types);
   while (*types)
     {
@@ -207,9 +209,9 @@ static unsigned	systemVersion = MAX_SUPPORTED_SYSTEM_VERSION;
   unsigned	i;
   unsigned	size = objc_sizeof_type(type);
   char		*where = address;
-  IMP		imp;
+  void (*imp)(id, SEL, const char*, void*);
 
-  imp = [self methodForSelector: @selector(decodeValueOfObjCType:at:)];
+  imp = (void (*)(id, SEL, const char*, void*))[self methodForSelector: @selector(decodeValueOfObjCType:at:)];
 
   for (i = 0; i < count; i++, where += size)
     {
@@ -223,9 +225,9 @@ static unsigned	systemVersion = MAX_SUPPORTED_SYSTEM_VERSION;
   const char	*type = @encode(unsigned char);
   unsigned char	*where;
   unsigned char	*array;
-  IMP		imp;
+  void (*imp)(id, SEL, const char*, void*);
 
-  imp = [self methodForSelector: @selector(decodeValueOfObjCType:at:)];
+  imp = (void (*)(id, SEL, const char*, void*))[self methodForSelector: @selector(decodeValueOfObjCType:at:)];
 
   (*imp)(self, @selector(decodeValueOfObjCType:at:),
     @encode(unsigned int), &count);
@@ -295,9 +297,9 @@ static unsigned	systemVersion = MAX_SUPPORTED_SYSTEM_VERSION;
 - (void) decodeValuesOfObjCTypes: (const char*)types,...
 {
   va_list	ap;
-  IMP		imp;
+  void (*imp)(id, SEL, const char*, void*);
 
-  imp = [self methodForSelector: @selector(decodeValueOfObjCType:at:)];
+  imp = (void (*)(id, SEL, const char*, void*))[self methodForSelector: @selector(decodeValueOfObjCType:at:)];
   va_start(ap, types);
   while (*types)
     {

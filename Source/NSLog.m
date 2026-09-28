@@ -87,8 +87,8 @@ extern NSThread	*GSCurrentThread();
 int _NSLogDescriptor = 2;
 
 static NSRecursiveLock	*myLock = nil;
-static IMP              lockImp = 0;
-static IMP              unlockImp = 0;
+static void (*lockImp)(id, SEL) = 0;
+static void (*unlockImp)(id, SEL) = 0;
 
 /**
  * Returns the lock used to protect the GNUstep NSLogv() implementation.
@@ -107,8 +107,8 @@ GSLogLock()
       if (myLock == nil)
 	{
 	  myLock = [NSRecursiveLock new];
-          lockImp = [myLock methodForSelector: @selector(lock)];
-          unlockImp = [myLock methodForSelector: @selector(unlock)];
+          lockImp = (void (*)(id, SEL))[myLock methodForSelector: @selector(lock)];
+          unlockImp = (void (*)(id, SEL))[myLock methodForSelector: @selector(unlock)];
 	}
       GS_MUTEX_UNLOCK(setupLock);
     }

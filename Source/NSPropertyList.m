@@ -2125,7 +2125,7 @@ OAppend(id obj, NSDictionary *loc, unsigned lev, unsigned step,
       const char	*iBaseString;
       const char	*iSizeString;
       SEL		objSel = @selector(objectForKey:);
-      IMP		myObj = [obj methodForSelector: objSel];
+      id (*myObj)(id, SEL, id) = (id (*)(id, SEL, id))[obj methodForSelector: objSel];
       unsigned		i;
       NSArray		*keyArray = [obj allKeys];
       unsigned		numKeys = [keyArray count];

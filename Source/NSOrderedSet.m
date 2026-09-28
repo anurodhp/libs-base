@@ -712,7 +712,7 @@ static SEL	remSel;
   if (c > 0 && anObject != nil)
     {
       NSUInteger	i;
-      IMP	get = [self methodForSelector: oaiSel];
+      id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: oaiSel];
       BOOL	(*eq)(id, SEL, id)
 	= (BOOL (*)(id, SEL, id))[anObject methodForSelector: eqSel];
 
@@ -994,7 +994,7 @@ static SEL	remSel;
   NSUInteger i, j = 0;
   NSUInteger c = [self count];
   NSUInteger e = NSMaxRange(aRange);
-  IMP	get = [self methodForSelector: oaiSel];
+  id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[self methodForSelector: oaiSel];
 
   GS_RANGE_CHECK(aRange, c);
 
@@ -1416,7 +1416,7 @@ static SEL	remSel;
   if (count > 0)
     {
       NSUInteger	i;
-      IMP	rem = [self methodForSelector: remSel];
+      void (*rem)(id, SEL, NSUInteger) = (void (*)(id, SEL, NSUInteger))[self methodForSelector: remSel];
       
       for (i = 0; i < count; i++)
 	{
@@ -1433,8 +1433,8 @@ static SEL	remSel;
   if (c > 0)
     {
       NSUInteger	i;
-      IMP	get = [otherArray methodForSelector: oaiSel];
-      IMP	rem = [self methodForSelector: @selector(removeObject:)];
+      id (*get)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[otherArray methodForSelector: oaiSel];
+      void (*rem)(id, SEL, id) = (void (*)(id, SEL, id))[self methodForSelector: @selector(removeObject:)];
 
       for (i = 0; i < c; i++)
 	(*rem)(self, @selector(removeObject:), (*get)(otherArray, oaiSel, i));
@@ -1456,7 +1456,7 @@ static SEL	remSel;
 
   if (i > s)
     {
-      IMP	rem = [self methodForSelector: remSel];
+      void (*rem)(id, SEL, NSUInteger) = (void (*)(id, SEL, NSUInteger))[self methodForSelector: remSel];
 
       while (i-- > s)
 	{

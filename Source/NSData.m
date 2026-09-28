@@ -70,7 +70,9 @@
 
 #import "common.h"
 
-#if !defined (__GNU_LIBOBJC__)
+#if GS_OBJC4_RUNTIME
+#  include "GSObjC4Encoding.h"
+#elif !defined (__GNU_LIBOBJC__)
 #  include <objc/encoding.h>
 #endif
 
@@ -132,7 +134,7 @@ static Class	mutableDataBlock;
 static Class	NSDataAbstract;
 static Class	NSMutableDataAbstract;
 static SEL	appendSel;
-static IMP	appendImp;
+static void (*appendImp)(id, SEL, const void*, NSUInteger);
 
 static inline void
 decodebase64(unsigned char *dst, const unsigned char *src)
@@ -517,7 +519,7 @@ failure:
       mutableDataMalloc = [NSMutableDataMalloc class];
       mutableDataBlock = [NSMutableDataWithDeallocatorBlock class];
       appendSel = @selector(appendBytes:length:);
-      appendImp = [mutableDataMalloc instanceMethodForSelector: appendSel];
+      appendImp = (void (*)(id, SEL, const void*, NSUInteger))[mutableDataMalloc instanceMethodForSelector: appendSel];
     }
 }
 
@@ -2943,7 +2945,7 @@ failure:
 {
   unsigned	i;
   SEL		sel = @selector(serializeInt:);
-  IMP		imp = [self methodForSelector: sel];
+  void (*imp)(id, SEL, int) = (void (*)(id, SEL, int))[self methodForSelector: sel];
 
   for (i = 0; i < numInts; i++)
     {
@@ -2962,7 +2964,7 @@ failure:
 {
   unsigned	i;
   SEL		sel = @selector(serializeInt:atIndex:);
-  IMP		imp = [self methodForSelector: sel];
+  void (*imp)(id, SEL, int, unsigned int) = (void (*)(id, SEL, int, unsigned int))[self methodForSelector: sel];
 
   for (i = 0; i < numInts; i++)
     {

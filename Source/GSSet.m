@@ -202,7 +202,7 @@ static Class	mutableSetClass;
     {
       unsigned		count = map.nodeCount;
       SEL			sel = @selector(encodeObject:);
-      IMP			imp = [aCoder methodForSelector: sel];
+      void (*imp)(id, SEL, id) = (void (*)(id, SEL, id))[aCoder methodForSelector: sel];
       GSIMapEnumerator_t	enumerator = GSIMapEnumeratorForMap(&map);
       GSIMapNode 		node = GSIMapEnumeratorNextNode(&enumerator);
 
@@ -237,7 +237,7 @@ static Class	mutableSetClass;
       unsigned	count;
       id		value;
       SEL		sel = @selector(decodeValueOfObjCType:at:);
-      IMP		imp = [aCoder methodForSelector: sel];
+      void (*imp)(id, SEL, const char*, void*) = (void (*)(id, SEL, const char*, void*))[aCoder methodForSelector: sel];
       const char	*type = @encode(id);
 
       (*imp)(aCoder, sel, @encode(unsigned), &count);
@@ -329,7 +329,7 @@ static Class	mutableSetClass;
 {
   GSIMapEnumerator_t	enumerator;
   GSIMapNode 		node;
-  IMP			imp;
+  id (*imp)(id, SEL, id);
 
   // -1. members of this set(self) <= that of otherSet
   if (map.nodeCount > [otherSet count])
@@ -341,7 +341,7 @@ static Class	mutableSetClass;
       return YES;
     }
 
-  imp = [otherSet methodForSelector: memberSel];
+  imp = (id (*)(id, SEL, id))[otherSet methodForSelector: memberSel];
   enumerator = GSIMapEnumeratorForMap(&map);
   node = GSIMapEnumeratorNextNode(&enumerator);
 
@@ -424,11 +424,11 @@ static Class	mutableSetClass;
 	    {
 	      GSIMapEnumerator_t	enumerator;
 	      GSIMapNode 		node;
-	      IMP			imp;
-              IMP                       countImp;
+	      id (*imp)(id, SEL, id);
+              NSUInteger (*countImp)(id, SEL, id);
 
-	      imp = [other methodForSelector: memberSel];
-              countImp = [other methodForSelector: privateCountOfSel];
+	      imp = (id (*)(id, SEL, id))[other methodForSelector: memberSel];
+              countImp = (NSUInteger (*)(id, SEL, id))[other methodForSelector: privateCountOfSel];
 	      enumerator = GSIMapEnumeratorForMap(&map);
 	      node = GSIMapEnumeratorNextNode(&enumerator);
 
@@ -706,7 +706,7 @@ static Class	mutableSetClass;
       else
         {
 	  SEL	sel = @selector(member:);
-	  IMP	imp = [other methodForSelector: sel];
+	  id (*imp)(id, SEL, id) = (id (*)(id, SEL, id))[other methodForSelector: sel];
 
           enumerator = GSIMapEnumeratorForMap(&map);
           bucket = GSIMapEnumeratorBucket(&enumerator);
@@ -784,7 +784,7 @@ static Class	mutableSetClass;
 	{
 	  id	anObject;
 	  SEL	sel = @selector(nextObject);
-	  IMP	imp = [e methodForSelector: sel];
+	  id (*imp)(id, SEL) = (id (*)(id, SEL))[e methodForSelector: sel];
 
 	  while ((anObject = (*imp)(e, sel)) != nil)
 	    {

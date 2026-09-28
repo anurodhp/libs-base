@@ -77,12 +77,12 @@ static SEL	setDictSel;
 static SEL	relDictSel;
 static SEL	remDictSel;
 
-static IMP	allocDictImp;
-static IMP	initDictImp;
-static IMP	addDictImp;
-static IMP	setDictImp;
-static IMP	relDictImp;
-static IMP	remDictImp;
+static id (*allocDictImp)(id, SEL, NSZone*);
+static id (*initDictImp)(id, SEL, id);
+static void (*addDictImp)(id, SEL, id);
+static void (*setDictImp)(id, SEL, id, id);
+static void (*relDictImp)(id, SEL);
+static void (*remDictImp)(id, SEL, id);
 
 @interface GSMutableAttributedStringTracker : NSMutableString
 {
@@ -127,12 +127,12 @@ static Class GSMutableAttributedStringClass;
       relDictSel = @selector(release);
       remDictSel = @selector(removeObjectForKey:);
 
-      allocDictImp = [dictionaryClass methodForSelector: allocDictSel];
-      initDictImp = [dictionaryClass instanceMethodForSelector: initDictSel];
-      addDictImp = [dictionaryClass instanceMethodForSelector: addDictSel];
-      setDictImp = [dictionaryClass instanceMethodForSelector: setDictSel];
-      remDictImp = [dictionaryClass instanceMethodForSelector: remDictSel];
-      relDictImp = [dictionaryClass instanceMethodForSelector: relDictSel];
+      allocDictImp = (id (*)(id, SEL, NSZone*))[dictionaryClass methodForSelector: allocDictSel];
+      initDictImp = (id (*)(id, SEL, id))[dictionaryClass instanceMethodForSelector: initDictSel];
+      addDictImp = (void (*)(id, SEL, id))[dictionaryClass instanceMethodForSelector: addDictSel];
+      setDictImp = (void (*)(id, SEL, id, id))[dictionaryClass instanceMethodForSelector: setDictSel];
+      remDictImp = (void (*)(id, SEL, id))[dictionaryClass instanceMethodForSelector: remDictSel];
+      relDictImp = (void (*)(id, SEL))[dictionaryClass instanceMethodForSelector: relDictSel];
     }
 }
 
@@ -459,14 +459,14 @@ appendUIntData(NSMutableData *d, NSUInteger i)
 {
   NSDictionary	*attrDictionary, *tmpDictionary;
   NSRange	tmpRange;
-  IMP		getImp;
+  id (*getImp)(id, SEL, NSUInteger, NSRange*);
 
   if (NSMaxRange(rangeLimit) > [self length])
     {
       [NSException raise: NSRangeException
 		  format: @"RangeError in method -attributesAtIndex:longestEffectiveRange:inRange: in class NSAttributedString"];
     }
-  getImp = [self methodForSelector: getSel];
+  getImp = (id (*)(id, SEL, NSUInteger, NSRange*))[self methodForSelector: getSel];
   attrDictionary = (*getImp)(self, getSel, index, aRange);
   if (aRange == 0)
     return attrDictionary;
@@ -547,7 +547,7 @@ appendUIntData(NSMutableData *d, NSUInteger i)
   id		tmpAttrValue;
   NSRange	tmpRange;
   BOOL		(*eImp)(id,SEL,id);
-  IMP		getImp;
+  id (*getImp)(id, SEL, NSUInteger, NSRange*);
 
   if (NSMaxRange(rangeLimit) > [self length])
     {
@@ -570,7 +570,7 @@ appendUIntData(NSMutableData *d, NSUInteger i)
    * If attrValue == nil then eImp will be zero
    */
   eImp = (BOOL(*)(id,SEL,id))[attrValue methodForSelector: eqSel];
-  getImp = [self methodForSelector: getSel];
+  getImp = (id (*)(id, SEL, NSUInteger, NSRange*))[self methodForSelector: getSel];
 
   while (aRange->location > rangeLimit.location)
     {
@@ -870,19 +870,19 @@ appendUIntData(NSMutableData *d, NSUInteger i)
   NSDictionary		*attrDict;
   NSMutableDictionary	*newDict;
   unsigned int		tmpLength;
-  IMP			getImp;
+  id (*getImp)(id, SEL, NSUInteger, NSRange*);
 
   tmpLength = [self length];
   GS_RANGE_CHECK(aRange, tmpLength);
 
-  getImp = [self methodForSelector: getSel];
+  getImp = (id (*)(id, SEL, NSUInteger, NSRange*))[self methodForSelector: getSel];
   attrDict = (*getImp)(self, getSel, aRange.location, &effectiveRange);
 
   if (effectiveRange.location < NSMaxRange(aRange))
     {
-      IMP	setImp;
+      void (*setImp)(id, SEL, id, NSRange);
 
-      setImp = [self methodForSelector: setSel];
+      setImp = (void (*)(id, SEL, id, NSRange))[self methodForSelector: setSel];
 
       [self beginEditing];
       while (effectiveRange.location < NSMaxRange(aRange))
@@ -919,7 +919,7 @@ appendUIntData(NSMutableData *d, NSUInteger i)
   NSDictionary		*attrDict;
   NSMutableDictionary	*newDict;
   unsigned int		tmpLength;
-  IMP			getImp;
+  id (*getImp)(id, SEL, NSUInteger, NSRange*);
 
   if (!attributes)
     {
@@ -935,14 +935,14 @@ appendUIntData(NSMutableData *d, NSUInteger i)
 			  @"in class NSMutableAttributedString"];
     }
 
-  getImp = [self methodForSelector: getSel];
+  getImp = (id (*)(id, SEL, NSUInteger, NSRange*))[self methodForSelector: getSel];
   attrDict = (*getImp)(self, getSel, aRange.location, &effectiveRange);
 
   if (effectiveRange.location < NSMaxRange(aRange))
     {
-      IMP	setImp;
+      void (*setImp)(id, SEL, id, NSRange);
 
-      setImp = [self methodForSelector: setSel];
+      setImp = (void (*)(id, SEL, id, NSRange))[self methodForSelector: setSel];
 
       [self beginEditing];
       while (effectiveRange.location < NSMaxRange(aRange))
@@ -979,19 +979,19 @@ appendUIntData(NSMutableData *d, NSUInteger i)
   NSDictionary		*attrDict;
   NSMutableDictionary	*newDict;
   unsigned int		tmpLength;
-  IMP			getImp;
+  id (*getImp)(id, SEL, NSUInteger, NSRange*);
 
   tmpLength = [self length];
   GS_RANGE_CHECK(aRange, tmpLength);
 
-  getImp = [self methodForSelector: getSel];
+  getImp = (id (*)(id, SEL, NSUInteger, NSRange*))[self methodForSelector: getSel];
   attrDict = (*getImp)(self, getSel, aRange.location, &effectiveRange);
 
   if (effectiveRange.location < NSMaxRange(aRange))
     {
-      IMP	setImp;
+      void (*setImp)(id, SEL, id, NSRange);
 
-      setImp = [self methodForSelector: setSel];
+      setImp = (void (*)(id, SEL, id, NSRange))[self methodForSelector: setSel];
 
       [self beginEditing];
       while (effectiveRange.location < NSMaxRange(aRange))
@@ -1065,11 +1065,11 @@ appendUIntData(NSMutableData *d, NSUInteger i)
       unsigned	loc = 0;
       NSRange	effectiveRange = NSMakeRange(0, loc);
       NSRange	clipRange = NSMakeRange(0, max);
-      IMP	getImp;
-      IMP	setImp;
+      id (*getImp)(id, SEL, NSUInteger, NSRange*);
+      void (*setImp)(id, SEL, id, NSRange);
 
-      getImp = [attributedString methodForSelector: getSel];
-      setImp = [self methodForSelector: setSel];
+      getImp = (id (*)(id, SEL, NSUInteger, NSRange*))[attributedString methodForSelector: getSel];
+      setImp = (void (*)(id, SEL, id, NSRange))[self methodForSelector: setSel];
       while (loc < max)
 	{
 	  NSRange	ownRange;

@@ -46,16 +46,16 @@
   NSMutableArray	*array;
   id			obj;
   SEL			nsel;
-  IMP			nimp;
+  id (*nimp)(id, SEL);
   SEL			asel;
-  IMP			aimp;
+  void (*aimp)(id, SEL, id);
 
   array = [NSMutableArray arrayWithCapacity: 10];
 
   nsel = @selector(nextObject);
-  nimp = [self methodForSelector: nsel];
+  nimp = (id (*)(id, SEL))[self methodForSelector: nsel];
   asel = @selector(addObject:);
-  aimp = [array methodForSelector: asel];
+  aimp = (void (*)(id, SEL, id))[array methodForSelector: asel];
 
   while ((obj = (*nimp)(self, nsel)) != nil)
     {
@@ -78,7 +78,7 @@
 				   objects: (id*)stackbuf
 				     count: (NSUInteger)len
 {
-  IMP nextObject = [self methodForSelector: @selector(nextObject)];
+  id (*nextObject)(id, SEL) = (id (*)(id, SEL))[self methodForSelector: @selector(nextObject)];
   int i;
 
   state->itemsPtr = stackbuf;

@@ -42,9 +42,9 @@
  */
 static NSRecursiveLock	*uniqueLock = nil;
 static NSCountedSet	*uniqueSet = nil;
-static IMP		uniqueImp = 0;
-static IMP		lockImp = 0;
-static IMP		unlockImp = 0;
+static id (*uniqueImp)(id, SEL, id) = 0;
+static void (*lockImp)(id, SEL) = 0;
+static void (*unlockImp)(id, SEL) = 0;
 static BOOL		uniquing = NO;
 
 /**
@@ -72,8 +72,8 @@ static Class NSCountedSet_concrete_class;
       NSCountedSet_concrete_class = [GSCountedSet class];
       uniqueLock = [NSRecursiveLock new];
       [[NSObject leakAt: &uniqueLock] release];
-      lockImp = [uniqueLock methodForSelector: @selector(lock)];
-      unlockImp = [uniqueLock methodForSelector: @selector(unlock)];
+      lockImp = (void (*)(id, SEL))[uniqueLock methodForSelector: @selector(lock)];
+      unlockImp = (void (*)(id, SEL))[uniqueLock methodForSelector: @selector(unlock)];
     }
 }
 
@@ -131,7 +131,7 @@ static Class NSCountedSet_concrete_class;
     id		objs[count];
     unsigned	refs[count];
     unsigned	i;
-    IMP		addImp = [self methodForSelector: @selector(addObject:)];
+    void (*addImp)(id, SEL, id) = (void (*)(id, SEL, id))[self methodForSelector: @selector(addObject:)];
 
     for (i = 0; i < count; i++)
       {
@@ -179,7 +179,7 @@ static Class NSCountedSet_concrete_class;
   id		os[c], o, e = [other objectEnumerator];
   unsigned	i = 0;
   NSZone	*z = [self zone];
-  IMP		next = [e methodForSelector: @selector(nextObject)];
+  id (*next)(id, SEL) = (id (*)(id, SEL))[e methodForSelector: @selector(nextObject)];
 
   while ((o = (*next)(e, @selector(nextObject))) != nil)
     {
@@ -193,7 +193,7 @@ static Class NSCountedSet_concrete_class;
   if ([other isKindOfClass: NSCountedSet_abstract_class])
     {
       unsigned	j;
-      IMP	addImp = [self methodForSelector: @selector(addObject:)];
+      void (*addImp)(id, SEL, id) = (void (*)(id, SEL, id))[self methodForSelector: @selector(addObject:)];
 
       for (j = 0; j < i; j++)
 	{
@@ -371,7 +371,7 @@ GSUniquing(BOOL flag)
   if (uniqueSet == nil)
     {
       uniqueSet = [NSCountedSet new];
-      uniqueImp = [uniqueSet methodForSelector: @selector(unique:)];
+      uniqueImp = (id (*)(id, SEL, id))[uniqueSet methodForSelector: @selector(unique:)];
     }
   uniquing = flag;
 }

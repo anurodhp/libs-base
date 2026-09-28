@@ -465,13 +465,13 @@ miniTimSort(id *buf, NSRange r, id descOrComp, GSComparisonType ty, void *ctx)
   GS_TIMSORT_CACHED_MSGV(desc, ensureCapImp, ensureTempCapacity:, length)
 
 
-static IMP pushRunImp;
-static IMP suggestMergeImp;
-static IMP forceMergeImp;
-static IMP mergeAtIndexImp;
-static IMP mergeLowImp;
-static IMP mergeHighImp;
-static IMP ensureCapImp;
+static void (*pushRunImp)(id, SEL, NSRange);
+static void (*suggestMergeImp)(id, SEL);
+static void (*forceMergeImp)(id, SEL);
+static void (*mergeAtIndexImp)(id, SEL, NSUInteger);
+static void (*mergeLowImp)(id, SEL, NSRange, NSRange);
+static void (*mergeHighImp)(id, SEL, NSRange, NSRange);
+static void (*ensureCapImp)(id, SEL, NSUInteger);
 
 @interface GSTimSortPlaceHolder : NSObject
 {
@@ -519,19 +519,19 @@ _GSTimSort(id *objects,
   if ([GSTimSortPlaceHolder class] == [self class])
     {
       // We need to be fast, so we cache a lot of IMPs
-      pushRunImp =
+      pushRunImp = (void (*)(id, SEL, NSRange))
         [self instanceMethodForSelector: @selector(pushRun:)];
-      suggestMergeImp =
+      suggestMergeImp = (void (*)(id, SEL))
         [self instanceMethodForSelector: @selector(suggestMerge)];
-      forceMergeImp =
+      forceMergeImp = (void (*)(id, SEL))
         [self instanceMethodForSelector: @selector(forceMerge)];
-      mergeAtIndexImp =
+      mergeAtIndexImp = (void (*)(id, SEL, NSUInteger))
         [self instanceMethodForSelector: @selector(mergeAtIndex:)];
-      mergeLowImp =
+      mergeLowImp = (void (*)(id, SEL, NSRange, NSRange))
         [self instanceMethodForSelector: @selector(mergeLowRun:withRun:)];
-      mergeHighImp =
+      mergeHighImp = (void (*)(id, SEL, NSRange, NSRange))
         [self instanceMethodForSelector: @selector(mergeHighRun:withRun:)];
-      ensureCapImp =
+      ensureCapImp = (void (*)(id, SEL, NSUInteger))
         [self instanceMethodForSelector: @selector(ensureTempCapacity:)];
     }
 }

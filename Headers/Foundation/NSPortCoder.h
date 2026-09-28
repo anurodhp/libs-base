@@ -60,8 +60,8 @@ GS_EXPORT_CLASS
   BOOL			_encodingRoot;
   BOOL			_initialPass;
   id			_dst;		/* Serialization destination.	*/
-  IMP			_eObjImp;	/* Method to encode an id.	*/
-  IMP			_eValImp;	/* Method to encode others.	*/
+  void		(*_eObjImp)(id, SEL, id);	/* Method to encode an id.	*/
+  void		(*_eValImp)(id, SEL, const char*, const void*);	/* Method to encode others.	*/
 #ifndef	_IN_PORT_CODER_M
 #define	GSIMapTable	void*
 #endif
@@ -77,9 +77,9 @@ GS_EXPORT_CLASS
   unsigned		_xRefP;		/* Counter for cross-reference.	*/
 // Decoding
   id			_src;		/* Deserialization source.	*/
-  IMP			_dDesImp;	/* Method to deserialize with.	*/
+  void		(*_dDesImp)(id, SEL, void*, const char*, unsigned int*, id);	/* Method to deserialize with.	*/
   void			(*_dTagImp)(id,SEL,unsigned char*,unsigned*,unsigned*);
-  IMP			_dValImp;	/* Method to decode data with.	*/
+  void		(*_dValImp)(id, SEL, const char*, void*);	/* Method to decode data with.	*/
 #ifndef	_IN_PORT_CODER_M
 #define	GSIArray	void*
 #endif

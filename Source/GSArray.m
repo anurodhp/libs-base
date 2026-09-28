@@ -321,7 +321,7 @@ static int (*lsanCheck)(void) = __lsan_do_recoverable_leak_check;
     }
   if (_count > 0)
     {
-      IMP	get1 = [otherArray methodForSelector: oaiSel];
+      id (*get1)(id, SEL, NSUInteger) = (id (*)(id, SEL, NSUInteger))[otherArray methodForSelector: oaiSel];
 
       for (i = 0; i < _count; i++)
 	{
@@ -681,7 +681,7 @@ else
 
   if ((pos = _count) > 0)
     {
-      IMP       rel = 0;
+      void (*rel)(id, SEL) = 0;
       Class    last = Nil;
 
       _version++;
@@ -696,7 +696,7 @@ else
 	      if (c != last)
 		{
 		  last = c;
-		  rel = [o methodForSelector: @selector(release)];
+		  rel = (void (*)(id, SEL))[o methodForSelector: @selector(release)];
 		}
 	      (*rel)(o, @selector(release));
 	    }
@@ -826,7 +826,7 @@ else
       NSUInteger        index;
       NSUInteger        tail;
       NSUInteger        end;
-      IMP       rel = 0;
+      void (*rel)(id, SEL) = 0;
       Class    last = Nil;
 
       _version++;
@@ -845,7 +845,7 @@ else
 	      if (c != last)
 		{
 		  last = c;
-		  rel = [o methodForSelector: @selector(release)];
+		  rel = (void (*)(id, SEL))[o methodForSelector: @selector(release)];
 		}
 	      (*rel)(o, @selector(release));
 	    }

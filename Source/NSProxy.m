@@ -414,7 +414,7 @@
 				sel_getName(_cmd)];
       return nil;
     }
-  return (*msg)(self, aSelector);
+  return ((id (*)(id, SEL))msg)(self, aSelector);
 }
 
 - (id) performSelector: (SEL)aSelector
@@ -429,7 +429,7 @@
 				sel_getName(_cmd)];
       return nil;
     }
-  return (*msg)(self, aSelector, anObject);
+  return ((id (*)(id, SEL, id))msg)(self, aSelector, anObject);
 }
 
 - (id) performSelector: (SEL)aSelector
@@ -445,7 +445,7 @@
 				sel_getName(_cmd)];
       return nil;
     }
-  return (*msg)(self, aSelector, anObject, anotherObject);
+  return ((id (*)(id, SEL, id, id))msg)(self, aSelector, anObject, anotherObject);
 }
 
 /**
@@ -470,7 +470,7 @@
 - (id) replacementObjectForPortCoder: (NSPortCoder*)aCoder
 {
   static Class	proxyClass = 0;
-  static IMP	proxyImp = 0;
+  static id (*proxyImp)(id, SEL, id, id) = 0;
 
   if (proxyImp == 0)
     {
@@ -479,7 +479,7 @@
        * use class_getMethodImplementation() because NSDistantObject
        * doesn't implement methodForSelector:
        */
-      proxyImp = class_getMethodImplementation(object_getClass((id)proxyClass),
+      proxyImp = (id (*)(id, SEL, id, id))class_getMethodImplementation(object_getClass((id)proxyClass),
 	@selector(proxyWithLocal:connection:));
     }
 

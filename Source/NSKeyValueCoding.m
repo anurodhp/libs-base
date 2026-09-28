@@ -354,7 +354,7 @@ static id ValueForKey(NSObject *self, const char *key, unsigned size)
   BOOL shouldNotify = [[self class] automaticallyNotifiesObserversForKey:aKey];
 
 #ifdef WANT_DEPRECATED_KVC_COMPAT
-  IMP   	o = [self methodForSelector: @selector(takeValue:forKey:)];
+  void (*o)(id, SEL, id, id) = (void (*)(id, SEL, id, id))[self methodForSelector: @selector(takeValue:forKey:)];
 
   setupCompat();
   if (o != takeValue && o != takeValueKVO)
@@ -387,7 +387,7 @@ static id ValueForKey(NSObject *self, const char *key, unsigned size)
 {
   NSRange       r = [aKey rangeOfString: @"." options: NSLiteralSearch];
 #ifdef WANT_DEPRECATED_KVC_COMPAT
-  IMP	        o = [self methodForSelector: @selector(takeValue:forKeyPath:)];
+  void (*o)(id, SEL, id, id) = (void (*)(id, SEL, id, id))[self methodForSelector: @selector(takeValue:forKeyPath:)];
 
   setupCompat();
   if (o != takePath && o != takePathKVO)

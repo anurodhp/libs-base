@@ -858,12 +858,12 @@ static gs_mutex_t       classLock = GS_MUTEX_INIT_STATIC;
   result = nil;
   if (nil != direnum)
     {
-      IMP	        nxtImp;
+      id (*nxtImp)(id, SEL);
       NSMutableArray    *urlArray;
       NSString          *tempPath;
 
 
-      nxtImp = [direnum methodForSelector: @selector(nextObject)];
+      nxtImp = (id (*)(id, SEL))[direnum methodForSelector: @selector(nextObject)];
 
       urlArray = [NSMutableArray arrayWithCapacity: 128];
       while ((tempPath = (*nxtImp)(direnum, @selector(nextObject))) != nil)
@@ -2521,11 +2521,11 @@ static gs_mutex_t       classLock = GS_MUTEX_INIT_STATIC;
 							     for: self];
   if (nil != direnum)
     {
-      IMP	nxtImp;
-      IMP	addImp;
+      id (*nxtImp)(id, SEL);
+      void (*addImp)(id, SEL, id);
 
-      nxtImp = [direnum methodForSelector: @selector(nextObject)];
-      addImp = [content methodForSelector: @selector(addObject:)];
+      nxtImp = (id (*)(id, SEL))[direnum methodForSelector: @selector(nextObject)];
+      addImp = (void (*)(id, SEL, id))[content methodForSelector: @selector(addObject:)];
 
       while ((path = (*nxtImp)(direnum, @selector(nextObject))) != nil)
 	{
@@ -2584,11 +2584,11 @@ static gs_mutex_t       classLock = GS_MUTEX_INIT_STATIC;
 							     for: self];
   if (nil != direnum)
     {
-      IMP	nxtImp;
-      IMP	addImp;
+      id (*nxtImp)(id, SEL);
+      void (*addImp)(id, SEL, id);
 
-      nxtImp = [direnum methodForSelector: @selector(nextObject)];
-      addImp = [content methodForSelector: @selector(addObject:)];
+      nxtImp = (id (*)(id, SEL))[direnum methodForSelector: @selector(nextObject)];
+      addImp = (void (*)(id, SEL, id))[content methodForSelector: @selector(addObject:)];
 
       while ((path = (*nxtImp)(direnum, @selector(nextObject))) != nil)
 	{

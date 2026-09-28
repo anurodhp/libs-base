@@ -169,16 +169,16 @@ pop_pool_from_cache(struct autorelease_thread_vars *tv)
 
 + (id) new
 {
-  static IMP	allocImp = 0;
-  static IMP	initImp = 0;
+  static id (*allocImp)(id, SEL, NSZone*) = 0;
+  static id (*initImp)(id, SEL) = 0;
   id		arp;
 
   if (0 == allocImp)
     {
       allocImp
-	= [NSAutoreleasePool methodForSelector: @selector(allocWithZone:)];
+	= (id (*)(id, SEL, NSZone*))[NSAutoreleasePool methodForSelector: @selector(allocWithZone:)];
       initImp
-	= [NSAutoreleasePool instanceMethodForSelector: @selector(init)];
+	= (id (*)(id, SEL))[NSAutoreleasePool instanceMethodForSelector: @selector(init)];
     }
   arp = (*allocImp)(self, @selector(allocWithZone:), NSDefaultMallocZone());
   return (*initImp)(arp, @selector(init));
@@ -479,7 +479,7 @@ pop_pool_from_cache(struct autorelease_thread_vars *tv)
 {
   unsigned	i;
   Class		classes[16];
-  IMP	 	imps[16];
+  void		(*imps[16])(id, SEL);
 
   for (i = 0; i < 16; i++)
     {
@@ -543,8 +543,8 @@ pop_pool_from_cache(struct autorelease_thread_vars *tv)
                    * methods may not exist, but this will return the
                    * address of the forwarding method if necessary.
                    */
-		  imps[hash]
-		    = class_getMethodImplementation(c, @selector(release));
+		  imps[hash] = (void (*)(id, SEL))
+		    class_getMethodImplementation(c, @selector(release));
 		  classes[hash] = c;
 		}
 	      (imps[hash])(anObject, @selector(release));

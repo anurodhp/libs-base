@@ -34,7 +34,9 @@
 
 #import "common.h"
 
-#if !defined (__GNU_LIBOBJC__)
+#if GS_OBJC4_RUNTIME
+#  include "GSObjC4Encoding.h"
+#elif !defined (__GNU_LIBOBJC__)
 #  include <objc/encoding.h>
 #endif
 
@@ -347,9 +349,9 @@ static Class	mutableArrayClass;
 static Class	mutableDataClass;
 static Class	mutableDictionaryClass;
 
-static IMP	_eSerImp;	/* Method to serialize with.	*/
-static IMP	_eTagImp;	/* Serialize a type tag.	*/
-static IMP	_xRefImp;	/* Serialize a crossref.	*/
+static void (*_eSerImp)(id, SEL, const void*, const char*, id);	/* Method to serialize with.	*/
+static void (*_eTagImp)(id, SEL, unsigned char);	/* Serialize a type tag.	*/
+static void (*_xRefImp)(id, SEL, unsigned char, unsigned int);	/* Serialize a crossref.	*/
 
 static unsigned	encodingVersion;
 
@@ -372,9 +374,9 @@ static unsigned	encodingVersion;
       dDesSel = @selector(deserializeDataAt:ofObjCType:atCursor:context:);
       dTagSel = @selector(deserializeTypeTag:andCrossRef:atCursor:);
       dValSel = @selector(decodeValueOfObjCType:at:);
-      _eSerImp = [mutableDataClass instanceMethodForSelector: eSerSel];
-      _eTagImp = [mutableDataClass instanceMethodForSelector: eTagSel];
-      _xRefImp = [mutableDataClass instanceMethodForSelector: xRefSel];
+      _eSerImp = (void (*)(id, SEL, const void*, const char*, id))[mutableDataClass instanceMethodForSelector: eSerSel];
+      _eTagImp = (void (*)(id, SEL, unsigned char))[mutableDataClass instanceMethodForSelector: eTagSel];
+      _xRefImp = (void (*)(id, SEL, unsigned char, unsigned int))[mutableDataClass instanceMethodForSelector: xRefSel];
       mutableDictionaryClass = [NSMutableDictionary class];
     }
 }
@@ -1482,7 +1484,7 @@ scalarSize(char type)
 	  /*
 	   *	Special case - encode a nil pointer as a crossref of zero.
 	   */
-	  (*_eTagImp)(_dst, eTagSel, _GSC_ID | _GSC_XREF, _GSC_X_0);
+	  (*_eTagImp)(_dst, eTagSel, _GSC_ID | _GSC_XREF | _GSC_X_0);
 	}
     }
   else
@@ -1963,8 +1965,8 @@ scalarSize(char type)
 	      /*
 	       * Cache method implementations for writing into data object etc
 	       */
-	      _eObjImp = [self methodForSelector: eObjSel];
-	      _eValImp = [self methodForSelector: eValSel];
+	      _eObjImp = (void (*)(id, SEL, id))[self methodForSelector: eObjSel];
+	      _eValImp = (void (*)(id, SEL, const char*, const void*))[self methodForSelector: eValSel];
 
 	      /*
 	       *	Set up map tables.
@@ -2025,10 +2027,10 @@ scalarSize(char type)
 
 	  if (firstTime == YES)
 	    {
-	      _dValImp = [self methodForSelector: dValSel];
+	      _dValImp = (void (*)(id, SEL, const char*, void*))[self methodForSelector: dValSel];
 	    }
 	  _src = [_comp objectAtIndex: 0];
-	  _dDesImp = [_src methodForSelector: dDesSel];
+	  _dDesImp = (void (*)(id, SEL, void*, const char*, unsigned int*, id))[_src methodForSelector: dDesSel];
 	  _dTagImp = (void (*)(id, SEL, unsigned char*, unsigned*, unsigned*))
 	    [_src methodForSelector: dTagSel];
 
@@ -2258,7 +2260,7 @@ scalarSize(char type)
 - (id) replacementObjectForPortCoder: (NSPortCoder*)aCoder
 {
   static Class	proxyClass = 0;
-  static IMP	proxyImp = 0;
+  static id (*proxyImp)(id, SEL, id, id) = 0;
 
   if (proxyImp == 0)
     {
@@ -2267,7 +2269,7 @@ scalarSize(char type)
        * Use class_getMethodImplementation() because NSDistantObject
        * doesn't implement methodForSelector:
        */
-      proxyImp = class_getMethodImplementation(object_getClass((id)proxyClass),
+      proxyImp = (id (*)(id, SEL, id, id))class_getMethodImplementation(object_getClass((id)proxyClass),
 	@selector(proxyWithLocal:connection:));
     }
 

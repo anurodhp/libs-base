@@ -294,11 +294,11 @@ serializeToInfo(id object, _NSSerializerInfo* info)
     {
       NSEnumerator	*e = [object keyEnumerator];
       id		k;
-      IMP		nxtImp;
-      IMP		objImp;
+      id (*nxtImp)(id, SEL);
+      id (*objImp)(id, SEL, id);
 
-      nxtImp = [e methodForSelector: @selector(nextObject)];
-      objImp = [object methodForSelector: @selector(objectForKey:)];
+      nxtImp = (id (*)(id, SEL))[e methodForSelector: @selector(nextObject)];
+      objImp = (id (*)(id, SEL, id))[object methodForSelector: @selector(objectForKey:)];
 
       if ([object isKindOfClass: MutableDictionaryClass])
         (*info->appImp)(info->data, appSel, &st_mdict, 1);
@@ -456,11 +456,11 @@ static SEL maInitSel;
 static SEL mdInitSel;
 static SEL maAddSel;
 static SEL mdSetSel;
-static IMP dInitImp;
-static IMP maInitImp;
-static IMP mdInitImp;
-static IMP maAddImp;
-static IMP mdSetImp;
+static id (*dInitImp)(id, SEL, void*, NSUInteger);
+static id (*maInitImp)(id, SEL, NSUInteger);
+static id (*mdInitImp)(id, SEL, NSUInteger);
+static void (*maAddImp)(id, SEL, id);
+static void (*mdSetImp)(id, SEL, id, id);
 
 static BOOL
 initDeserializerInfo(_NSDeserializerInfo* info, NSData *d, unsigned *c, BOOL m)
@@ -819,11 +819,11 @@ deserializeFromInfo(_NSDeserializerInfo* info)
       MACls = [GSMutableArray class];
       DCls = [NSDataMalloc class];
       MDCls = [GSMutableDictionary class];
-      dInitImp = [DCls instanceMethodForSelector: dInitSel];
-      maInitImp = [MACls instanceMethodForSelector: maInitSel];
-      mdInitImp = [MDCls instanceMethodForSelector: mdInitSel];
-      maAddImp = [MACls instanceMethodForSelector: maAddSel];
-      mdSetImp = [MDCls instanceMethodForSelector: mdSetSel];
+      dInitImp = (id (*)(id, SEL, void*, NSUInteger))[DCls instanceMethodForSelector: dInitSel];
+      maInitImp = (id (*)(id, SEL, NSUInteger))[MACls instanceMethodForSelector: maInitSel];
+      mdInitImp = (id (*)(id, SEL, NSUInteger))[MDCls instanceMethodForSelector: mdInitSel];
+      maAddImp = (void (*)(id, SEL, id))[MACls instanceMethodForSelector: maAddSel];
+      mdSetImp = (void (*)(id, SEL, id, id))[MDCls instanceMethodForSelector: mdSetSel];
       StringClass = [NSString class];
     }
 }

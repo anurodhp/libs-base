@@ -208,7 +208,7 @@ static Class	concreteClass = Nil;
   count = MIN(len, [self count] - state->state);
   if (count > 0)
     {
-      IMP	imp = [self methodForSelector: @selector(pointerAtIndex:)];
+      void* (*imp)(id, SEL, NSUInteger) = (void* (*)(id, SEL, NSUInteger))[self methodForSelector: @selector(pointerAtIndex:)];
       int	p = state->state;
       int	i;
 
