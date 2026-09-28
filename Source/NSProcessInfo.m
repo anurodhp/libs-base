@@ -1007,7 +1007,7 @@ int gnustep_base_user_main (int argc, char *argv[], char *env[])
 }
 int main(int argc, char *argv[], char *env[])
 {
-#ifdef NeXT_RUNTIME
+#if defined(NeXT_RUNTIME) && !defined(__OBJC2__)
   /* This memcpy has to be done before the first message is sent to any
      constant string object. See Apple Radar 2870817 */
   memcpy(&_NSConstantStringClassReference,

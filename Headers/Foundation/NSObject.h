@@ -28,6 +28,9 @@
 
 #import	<Foundation/NSObjCRuntime.h>
 #import <objc/objc.h>
+#if GS_OBJC4_RUNTIME
+#import <objc/NSObject.h>
+#endif
 #import	<Foundation/NSZone.h>
 
 #import	<GNUstepBase/GNUstep.h>
@@ -54,6 +57,7 @@ extern "C" {
  * of the messages listed in this protocol to an object, and be safe
  * in assuming that the receiver can handle it.
  */
+#if !GS_OBJC4_RUNTIME
 @protocol NSObject
 
 /**
@@ -225,6 +229,7 @@ extern "C" {
  */
 - (NSZone*) zone NS_AUTOMATED_REFCOUNT_UNAVAILABLE;
 @end
+#endif /* !GS_OBJC4_RUNTIME: objc4's <objc/NSObject.h> declares it */
 
 /**
  * This protocol must be adopted by any class wishing to support copying -
@@ -301,6 +306,10 @@ extern "C" {
 @end
 
 
+#if GS_OBJC4_RUNTIME
+/* libobjc owns the class; gnustep-base's part of it is a category. */
+@interface NSObject (GSFoundation)
+#else
 GS_EXPORT_CLASS GS_ROOT_CLASS
 @interface NSObject <NSObject>
 {
@@ -311,6 +320,7 @@ GS_EXPORT_CLASS GS_ROOT_CLASS
   */
   Class isa;
 }
+#endif
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_5, GS_API_LATEST)
 /** On a system which performs garbage collection, you should implement

@@ -2008,7 +2008,16 @@ fi
 # Unless we are building for the apple runtime (ie only building base
 # additions library and not implementing a constant string class).
 #---------------------------------------------------------------------
-if test "$OBJC_RUNTIME_LIB" = "nx" -o "$OBJC_RUNTIME_LIB" = "apple"; then
+FOUNDATION_LIB_NAME=`echo $LIBRARY_COMBO | tr '-' ' ' | awk '{print $2}'`
+if test "$OBJC_RUNTIME_LIB" = "apple" -a "$FOUNDATION_LIB_NAME" = "gnu"; then
+  # gnustep-base as the Foundation on Apple's objc4 (apple-gnu-gnu).
+  # clang on Darwin emits CFString-layout literals unless told otherwise;
+  # with -fno-constant-cfstrings it emits {isa, char *, int length} with
+  # isa = OBJC_CLASS_$_NSConstantString, a direct class reference the
+  # objc2 runtime realizes, which is NXConstantString's layout here.
+  NX_CONST_STRING_OBJCFLAGS="-fno-constant-cfstrings -fconstant-string-class=NSConstantString"
+  NX_CONST_STRING_CLASS=NSConstantString
+elif test "$OBJC_RUNTIME_LIB" = "nx" -o "$OBJC_RUNTIME_LIB" = "apple"; then
   NX_CONST_STRING_OBJCFLAGS=""
   NX_CONST_STRING_CLASS=NXConstantString
 else
@@ -3099,6 +3108,19 @@ else
   AC_COMPILE_IFELSE(
     [AC_LANG_SOURCE([[#include "$srcdir/config/config.forward.m"]])],
 	have_forward_hook=yes, have_forward_hook=no)
+fi
+if test $have_forward_hook = no; then
+  # Apple's objc4 has no forwarding hook that returns an IMP.
+  # objc_setForwardHandler() installs a handler that _objc_msgForward
+  # tail-calls with the original message's registers, and
+  # GSFFIInvocation.m adapts that to the same ffi closures.
+  AC_COMPILE_IFELSE(
+    [AC_LANG_SOURCE([[#include "$srcdir/config/config.setforwardhandler.m"]])],
+	have_forward_hook=yes, have_forward_hook=no)
+  if test $have_forward_hook = yes; then
+    AC_DEFINE(HAVE_OBJC_SETFORWARDHANDLER,1,
+              [Define if libobjc forwards through objc_setForwardHandler (objc4)])
+  fi
 fi
 AC_MSG_RESULT($have_forward_hook)
 if test $have_forward_hook = no; then

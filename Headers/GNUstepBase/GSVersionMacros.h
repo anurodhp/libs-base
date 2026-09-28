@@ -217,6 +217,20 @@
 #include <GNUstepBase/GSConfig.h>
 #endif
 
+/* GS_OBJC4_RUNTIME is 1 when gnustep-base is the Foundation on Apple's
+ * objc4 (library combo apple-gnu-gnu, objc2 ABI). libobjc then owns the
+ * root class NSObject and its core methods (objc4 runtime/NSObject.mm),
+ * and gnustep-base adds the Foundation parts as a category, as Apple's
+ * own Foundation/CoreFoundation does.
+ */
+#if !defined(GS_OBJC4_RUNTIME)
+#  if defined(NeXT_RUNTIME) && defined(__OBJC2__)
+#    define GS_OBJC4_RUNTIME 1
+#  else
+#    define GS_OBJC4_RUNTIME 0
+#  endif
+#endif
+
 
 #if defined(__GNUC__) && defined(__GNUC_MINOR__) && !defined(__clang__)
 #  define GS_GCC_MINREQ(maj, min) \

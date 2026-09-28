@@ -1210,7 +1210,7 @@ GS_EXPORT_CLASS
 }
 @end
 
-#ifdef NeXT_RUNTIME
+#if defined(NeXT_RUNTIME) && !defined(__OBJC2__)
 /** For internal use with NeXT runtime;
     needed, until Apple Radar 2870817 is fixed. */
 extern struct objc_class _NSConstantStringClassReference;

@@ -268,6 +268,9 @@
 /* Define if libobjc has the __objc_msg_forward2 function */
 #undef HAVE_FORWARD2
 
+/* Define if libobjc forwards through objc_setForwardHandler (objc4) */
+#undef HAVE_OBJC_SETFORWARDHANDLER
+
 /* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
 #undef HAVE_FSEEKO
 

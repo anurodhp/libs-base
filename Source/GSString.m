@@ -69,7 +69,7 @@ static BOOL isByteEncoding(NSStringEncoding enc)
   return GSPrivateIsByteEncoding(enc);
 }
 
-#ifdef NeXT_RUNTIME
+#if defined(NeXT_RUNTIME) && !defined(__OBJC2__)
 /* Used by the Darwin/NeXT ObjC Runtime
    until Apple Radar 2870817 is fixed. */
 struct objc_class _NSConstantStringClassReference;

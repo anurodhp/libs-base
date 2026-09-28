@@ -25,6 +25,11 @@
 
 #import "common.h"
 #include <stdio.h>
+#if defined(NeXT_RUNTIME) && defined(__OBJC2__)
+#include <dlfcn.h>
+#include <stdlib.h>
+#include <objc/runtime.h>
+#endif
 
 #if defined(NeXT_RUNTIME)
 # include <objc/objc-load.h>
@@ -140,7 +145,63 @@ GSPrivateLoadModule(NSString *filename, FILE *errorStream,
   void (*loadCallback)(Class, struct objc_category *),
   void **header, NSString *debugFilename)
 {
-#ifdef NeXT_RUNTIME
+#if defined(NeXT_RUNTIME) && defined(__OBJC2__)
+  /* objc4 has no objc_loadModule(): dyld loads the image and libobjc's
+   * map_images/load_images notifications register its classes and
+   * categories and run +load, as for any dlopen() on Apple systems.
+   * The callback then gets each class the image defines. objc4 has no
+   * public per-image category list, so categories are not reported;
+   * NSBundle only records class names from the callback.
+   */
+  const char	*path = [filename fileSystemRepresentation];
+  void		*handle;
+  const char	**names;
+  unsigned	count = 0;
+  unsigned	i;
+  Dl_info	info;
+
+  handle = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
+  if (handle == 0)
+    {
+      if (errorStream)
+	{
+	  fprintf(errorStream, "Error (objc-load): %s\n", dlerror());
+	}
+      return 1;
+    }
+  dynamic_loaded = YES;
+  if (header)
+    {
+      *header = handle;
+    }
+  /* libobjc keys images by dyld's path for them, which may differ from
+   * the one given (symlinks), so look it up from a symbol in the image
+   * when the given path finds nothing. */
+  names = objc_copyClassNamesForImage(path, &count);
+  if (names == 0 || count == 0)
+    {
+      void	*sym = dlsym(handle, "__mh_bundle_header");
+
+      if (sym == 0)
+	{
+	  sym = dlsym(handle, "__mh_dylib_header");
+	}
+      if (sym != 0 && dladdr(sym, &info) && info.dli_fname != 0)
+	{
+	  free(names);
+	  names = objc_copyClassNamesForImage(info.dli_fname, &count);
+	}
+    }
+  if (loadCallback)
+    {
+      for (i = 0; i < count; i++)
+	{
+	  loadCallback(objc_getClass(names[i]), 0);
+	}
+    }
+  free(names);
+  return 0;
+#elif defined(NeXT_RUNTIME)
   int errcode;
   dynamic_loaded = YES;
   return objc_loadModule([filename fileSystemRepresentation],

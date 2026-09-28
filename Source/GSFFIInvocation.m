@@ -42,7 +42,7 @@
 #include <objc/hooks.h>
 #endif
 
-#ifdef __GNU_LIBOBJC__
+#if defined(__GNU_LIBOBJC__) || defined(HAVE_OBJC_SETFORWARDHANDLER)
 #include <objc/message.h>
 #endif
 
@@ -263,9 +263,81 @@ exitedThread(void *slot)
 }
 #endif
 
+#if defined(HAVE_OBJC_SETFORWARDHANDLER) && !defined(__GNUSTEP_RUNTIME__) \
+  && !defined(__GNU_LIBOBJC__)
+/* Apple's objc4 has no __objc_msg_forward2 hook that returns an IMP.
+ * When a lookup fails, _objc_msgForward tail-calls the handler that
+ * objc_setForwardHandler() installed, with the original message's
+ * registers and stack still in place (objc4 runtime/Messengers.subproj/
+ * objc-msg-arm64.s, __objc_msgForward). CoreFoundation's
+ * __forwarding_prep_0___ is that handler on Apple systems.
+ *
+ * This handler saves the argument registers, asks gs_objc_msg_forward2()
+ * for the same ffi closure IMP the GNU runtimes get from the hook,
+ * restores the registers and tail-jumps to that IMP. The closure then
+ * sees the original call exactly as if it had been dispatched to it
+ * directly. arm64 has no separate stret entry point: x8 carries the
+ * indirect result address and is preserved like the other argument
+ * registers.
+ */
+__attribute__((used, visibility("hidden")))
+IMP gs_objc4_forward_lookup(id receiver, SEL sel)
+{
+  IMP	imp = gs_objc_msg_forward2(receiver, sel);
+
+  if (NULL == imp)
+    {
+      [NSException raise: NSInvalidArgumentException
+	format: @"unable to forward %s to %p", sel_getName(sel), receiver];
+    }
+  return imp;
+}
+
+#if defined(__aarch64__)
+void gs_objc4_forward(void);
+__asm__(
+  ".text\n"
+  ".p2align 2\n"
+  ".private_extern _gs_objc4_forward\n"
+  "_gs_objc4_forward:\n"
+  "  stp x29, x30, [sp, #-16]!\n"
+  "  mov x29, sp\n"
+  "  sub sp, sp, #208\n"
+  "  stp x0, x1, [sp, #0]\n"
+  "  stp x2, x3, [sp, #16]\n"
+  "  stp x4, x5, [sp, #32]\n"
+  "  stp x6, x7, [sp, #48]\n"
+  "  str x8, [sp, #64]\n"
+  "  stp q0, q1, [sp, #80]\n"
+  "  stp q2, q3, [sp, #112]\n"
+  "  stp q4, q5, [sp, #144]\n"
+  "  stp q6, q7, [sp, #176]\n"
+  "  bl _gs_objc4_forward_lookup\n"
+  "  mov x16, x0\n"
+  "  ldp x0, x1, [sp, #0]\n"
+  "  ldp x2, x3, [sp, #16]\n"
+  "  ldp x4, x5, [sp, #32]\n"
+  "  ldp x6, x7, [sp, #48]\n"
+  "  ldr x8, [sp, #64]\n"
+  "  ldp q0, q1, [sp, #80]\n"
+  "  ldp q2, q3, [sp, #112]\n"
+  "  ldp q4, q5, [sp, #144]\n"
+  "  ldp q6, q7, [sp, #176]\n"
+  "  mov sp, x29\n"
+  "  ldp x29, x30, [sp], #16\n"
+  "  br x16\n"
+);
+#else
+#error objc_setForwardHandler forwarding is only implemented for arm64
+#endif
+#endif
+
 + (void) load
 {
-#ifdef __GNUSTEP_RUNTIME__
+#if defined(HAVE_OBJC_SETFORWARDHANDLER) && !defined(__GNUSTEP_RUNTIME__) \
+  && !defined(__GNU_LIBOBJC__)
+  objc_setForwardHandler((void *)gs_objc4_forward, (void *)gs_objc4_forward);
+#elif defined(__GNUSTEP_RUNTIME__)
   GS_THREAD_KEY_INIT(thread_slot_key, exitedThread);
   __objc_msg_forward3 = gs_objc_msg_forward3;
   __objc_msg_forward2 = gs_objc_msg_forward2;
