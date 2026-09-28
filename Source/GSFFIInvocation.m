@@ -24,7 +24,7 @@
 #import "common.h"
 
 #if GS_OBJC4_RUNTIME
-#  include "GSObjC4Encoding.h"
+#  include "GNUstepBase/GSTypeEncoding.h"
 #elif !defined (__GNU_LIBOBJC__)
 #  include <objc/encoding.h>
 #endif
@@ -91,7 +91,7 @@ gs_find_best_typed_sel (SEL sel)
  */
   return sel_getTypedSelector(sel_getName(sel));
 }
-#elif defined(NeXTRUNTIME)
+#elif defined(NeXT_RUNTIME)
 {
   /* The NeXT runtime does not support typed selectors, so we simply
    * return 0 here.  */

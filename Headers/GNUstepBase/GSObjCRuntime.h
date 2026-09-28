@@ -41,12 +41,29 @@
  #ifndef _C_ATOM
   #define _C_ATOM '%'
  #endif
+ #if GS_OBJC4_RUNTIME
+  /* On objc4, objc_get_type_qualifiers() is gnustep-base's own
+   * (Source/Additions/GSTypeEncoding.c), which returns the
+   * GSObjCTypeQualifierMask values of GSTypeEncoding.h: ByRef 0x08,
+   * OneWay 0x10. The pre-objc2 values below give _F_ONEWAY as 0x08,
+   * which that function reports as ByRef.
+   */
+  #define _F_CONST       0x01
+  #define _F_IN          0x01
+  #define _F_OUT         0x02
+  #define _F_INOUT       0x03
+  #define _F_BYCOPY      0x04
+  #define _F_BYREF       0x08
+  #define _F_ONEWAY      0x10
+  #define _F_GCINVISIBLE 0x20
+ #else
  #define _F_CONST    0x01
  #define _F_IN       0x01
  #define _F_OUT      0x02
  #define _F_INOUT    0x03
  #define _F_BYCOPY   0x04
  #define _F_ONEWAY   0x08
+ #endif
  #define _C_CONST    'r'
  #define _C_IN       'n'
  #define _C_INOUT    'N'

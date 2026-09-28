@@ -121,14 +121,14 @@ NewUTF8STR(const void *ptr, int len)
   BOOL acceptHTML;			// be lazy with bad tag nesting
   BOOL hasStarted;
   BOOL hasElement;
-  IMP	didEndElement;
-  IMP	didEndMappingPrefix;
-  IMP	didStartElement;
-  IMP	didStartMappingPrefix;
-  IMP	foundCDATA;
-  IMP	foundCharacters;
-  IMP	foundComment;
-  IMP	foundIgnorable;
+  void	(*didEndElement)(id, SEL, id, id, id, id);
+  void	(*didEndMappingPrefix)(id, SEL, id, id);
+  void	(*didStartElement)(id, SEL, id, id, id, id, id);
+  void	(*didStartMappingPrefix)(id, SEL, id, id, id);
+  void	(*foundCDATA)(id, SEL, id, id);
+  void	(*foundCharacters)(id, SEL, id, id);
+  void	(*foundComment)(id, SEL, id, id);
+  void	(*foundIgnorable)(id, SEL, id, id);
 } 
 @end
 @implementation	GSXMLParserIvars
@@ -325,7 +325,7 @@ static	Class	strict = Nil;
 
       if ([_del respondsToSelector: didEndElementSel])
 	{
-	  this->didEndElement = [_del methodForSelector: didEndElementSel];
+	  this->didEndElement = (void (*)(id, SEL, id, id, id, id))[_del methodForSelector: didEndElementSel];
 	}
       else
 	{
@@ -335,7 +335,7 @@ static	Class	strict = Nil;
       if ([_del respondsToSelector: didEndMappingPrefixSel])
 	{
 	  this->didEndMappingPrefix
-	    = [_del methodForSelector: didEndMappingPrefixSel];
+	    = (void (*)(id, SEL, id, id))[_del methodForSelector: didEndMappingPrefixSel];
 	}
       else
 	{
@@ -344,7 +344,7 @@ static	Class	strict = Nil;
 
       if ([_del respondsToSelector: didStartElementSel])
 	{
-	  this->didStartElement = [_del methodForSelector: didStartElementSel];
+	  this->didStartElement = (void (*)(id, SEL, id, id, id, id, id))[_del methodForSelector: didStartElementSel];
 	}
       else
 	{
@@ -354,7 +354,7 @@ static	Class	strict = Nil;
       if ([_del respondsToSelector: didStartMappingPrefixSel])
 	{
 	  this->didStartMappingPrefix
-	    = [_del methodForSelector: didStartMappingPrefixSel];
+	    = (void (*)(id, SEL, id, id, id))[_del methodForSelector: didStartMappingPrefixSel];
 	}
       else
 	{
@@ -364,7 +364,7 @@ static	Class	strict = Nil;
       if ([_del respondsToSelector: foundCDATASel])
 	{
 	  this->foundCDATA
-	    = [_del methodForSelector: foundCDATASel];
+	    = (void (*)(id, SEL, id, id))[_del methodForSelector: foundCDATASel];
 	}
       else
 	{
@@ -374,7 +374,7 @@ static	Class	strict = Nil;
       if ([_del respondsToSelector: foundCharactersSel])
 	{
 	  this->foundCharacters
-	    = [_del methodForSelector: foundCharactersSel];
+	    = (void (*)(id, SEL, id, id))[_del methodForSelector: foundCharactersSel];
 	}
       else
 	{
@@ -384,7 +384,7 @@ static	Class	strict = Nil;
       if ([_del respondsToSelector: foundCommentSel])
 	{
 	  this->foundComment
-	    = [_del methodForSelector: foundCommentSel];
+	    = (void (*)(id, SEL, id, id))[_del methodForSelector: foundCommentSel];
 	}
       else
 	{
@@ -398,7 +398,7 @@ static	Class	strict = Nil;
  */
 #if 0
 	  this->foundIgnorable
-	    = [_del methodForSelector: foundIgnorableSel];
+	    = (void (*)(id, SEL, id, id))[_del methodForSelector: foundIgnorableSel];
 #else
 	  this->foundIgnorable = 0;
 #endif

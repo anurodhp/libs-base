@@ -31,8 +31,8 @@
 
 static SEL	wRelSel;
 static SEL	wRetSel;
-static IMP	wRelImp;
-static IMP	wRetImp;
+static void (*wRelImp)(id, SEL);
+static id (*wRetImp)(id, SEL);
 
 static void
 wRelease(NSMapTable* t, void* w)
@@ -59,8 +59,8 @@ static const NSMapTableValueCallBacks WatcherMapValueCallBacks =
 {
   wRelSel = @selector(release);
   wRetSel = @selector(retain);
-  wRelImp = [[GSRunLoopWatcher class] instanceMethodForSelector: wRelSel];
-  wRetImp = [[GSRunLoopWatcher class] instanceMethodForSelector: wRetSel];
+  wRelImp = (void (*)(id, SEL))[[GSRunLoopWatcher class] instanceMethodForSelector: wRelSel];
+  wRetImp = (id (*)(id, SEL))[[GSRunLoopWatcher class] instanceMethodForSelector: wRetSel];
 }
 
 - (void) dealloc

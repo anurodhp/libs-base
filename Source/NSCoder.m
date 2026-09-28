@@ -28,7 +28,7 @@
 #import "common.h"
 
 #if GS_OBJC4_RUNTIME
-#  include "GSObjC4Encoding.h"
+#  include "GNUstepBase/GSTypeEncoding.h"
 #elif !defined (__GNU_LIBOBJC__)
 #  include <objc/encoding.h>
 #endif
