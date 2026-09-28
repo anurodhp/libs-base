@@ -89,7 +89,15 @@
  * This symbol is exported to take precedence over the weak symbol provided
  * by the runtime library.
  */
+#if GS_OBJC4_RUNTIME
+/* libobjc exports objc_enumerationMutation() and calls the handler set
+ * with objc_setEnumerationMutationHandler() (objc4 runtime/objc-runtime.mm),
+ * which +[NSObject(GSFoundation) load] installs.
+ */
+static void GSEnumerationMutation(id obj)
+#else
 GS_EXPORT void objc_enumerationMutation(id obj)
+#endif
 {
   [NSException raise: NSGenericException 
     format: @"Collection %@ was mutated while being enumerated", obj];
@@ -213,6 +221,35 @@ extern void GSLogZombie(id o, SEL sel)
  * pointer to a 32bit integer as an argument, increment/decrement the
  * value pointed to, and return the result.
  */
+#if GS_OBJC4_RUNTIME
+/* On objc4 the reference count lives in libobjc (the non-pointer isa and
+ * the side tables, objc4 runtime/objc-object.h rootRetain/rootRelease),
+ * not in a header before the object, so these functions are libobjc's
+ * root operations: the same ones -[NSObject retain]/-release use
+ * (objc4 runtime/NSObject.mm _objc_rootRetain, _objc_rootReleaseWasZero,
+ * _objc_rootRetainCount).
+ */
+#import <objc/objc-internal.h>
+
+inline BOOL
+NSDecrementExtraRefCountWasZero(id anObject)
+{
+  return _objc_rootReleaseWasZero(anObject) ? YES : NO;
+}
+
+inline NSUInteger
+NSExtraRefCount(id anObject)
+{
+  return _objc_rootRetainCount(anObject) - 1;
+}
+
+inline void
+NSIncrementExtraRefCount(id anObject)
+{
+  (void)_objc_rootRetain(anObject);
+}
+
+#else
 #ifdef	GSATOMICREAD
 #undef	GSATOMICREAD
 #endif
@@ -737,6 +774,8 @@ NSIncrementExtraRefCount(id anObject)
    retain_fast(anObject);
 }
 
+#endif /* GS_OBJC4_RUNTIME */
+
 #ifndef	NDEBUG
 #define	AADD(c, o) GSDebugAllocationAdd(c, o)
 #define	AREM(c, o) GSDebugAllocationRemove(c, o)
@@ -746,6 +785,50 @@ NSIncrementExtraRefCount(id anObject)
 #endif
 
 
+#if GS_OBJC4_RUNTIME
+/* libobjc allocates, runs .cxx_construct, sets up the isa and frees
+ * (objc4 runtime/objc-runtime-new.mm class_createInstance,
+ * objc_destructInstance, object_dispose). Zones are ignored, as by
+ * objc4's own +allocWithZone:.
+ */
+inline id
+NSAllocateObject(Class aClass, NSUInteger extraBytes, NSZone *zone)
+{
+  id	new;
+
+  NSCAssert((!class_isMetaClass(aClass)), @"Bad class for new object");
+  if ((new = class_createInstance(aClass, extraBytes)) != nil)
+    {
+      AADD(aClass, new);
+    }
+  return new;
+}
+
+inline void
+NSDeallocateObject(id anObject)
+{
+  Class aClass = object_getClass(anObject);
+
+  if ((anObject != nil) && !class_isMetaClass(aClass))
+    {
+      AREM(aClass, (id)anObject);
+      if (NSZombieEnabled)
+	{
+	  /* As Apple's zombies do: destroy the instance (C++ ivars,
+	   * associated objects, weak references) but keep the memory, with
+	   * the isa pointing at the zombie class.
+	   */
+	  objc_destructInstance(anObject);
+	  GSMakeZombie(anObject, aClass);
+	}
+      else
+	{
+	  object_dispose(anObject);
+	}
+    }
+}
+
+#else
 #ifndef OBJC_CAP_ARC
 static SEL cxx_construct, cxx_destruct;
 
@@ -889,6 +972,8 @@ NSDeallocateObject(id anObject)
   return;
 }
 
+#endif /* GS_OBJC4_RUNTIME */
+
 BOOL
 NSShouldRetainWithZone (NSObject *anObject, NSZone *requestedZone)
 {
@@ -957,7 +1042,18 @@ NSShouldRetainWithZone (NSObject *anObject, NSZone *requestedZone)
  *   instances and on class objects.
  * </p>
  */
+#if GS_OBJC4_RUNTIME
+/* The Foundation-owned NSObject methods that objc4 leaves to Foundation
+ * (objc4 runtime/NSObject.mm, "Replaced by CF": -description,
+ * -methodSignatureForSelector:, -forwardInvocation:,
+ * -doesNotRecognizeSelector: ...) are deliberately implemented here, as
+ * Apple's CoreFoundation does.
+ */
+#pragma clang diagnostic ignored "-Wobjc-protocol-method-implementation"
+@implementation NSObject (GSFoundation)
+#else
 @implementation NSObject
+#endif
 #ifdef OBJC_CAP_ARC
 + (void) _TrivialAllocInit {}
 - (void) _ARCCompliantRetainRelease {}
@@ -979,12 +1075,17 @@ static id gs_weak_load(id obj)
 
 + (void) load
 {
+#if GS_OBJC4_RUNTIME
+  /* libobjc handles weak references and the block classes itself. */
+  objc_setEnumerationMutationHandler(GSEnumerationMutation);
+#else
 #ifdef OBJC_CAP_ARC
   _objc_weak_load = gs_weak_load;
 #else
   GSWeakInit();
 #endif
   objc_create_block_classes_as_subclasses_of(self);
+#endif
 }
 
 + (void) initialize
@@ -1067,7 +1168,7 @@ static id gs_weak_load(id obj)
       /* Initialize the locks for allocation when atomic
        * operations are not available.
        */
-#if !defined(GSATOMICREAD)
+#if !defined(GSATOMICREAD) && !GS_OBJC4_RUNTIME
       {
         NSUInteger	i;
 
@@ -1149,10 +1250,12 @@ static id gs_weak_load(id obj)
  * <code>NSDefaultMallocZone()</code> as the zone argument.<br />
  * Returns the created instance.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (id) alloc
 {
   return [self allocWithZone: NSDefaultMallocZone()];
 }
+#endif
 
 /**
  * This is the basic method to create a new instance.  It
@@ -1188,18 +1291,22 @@ static id gs_weak_load(id obj)
  *   functions.
  * </p>
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (id) allocWithZone: (NSZone*)z
 {
   return NSAllocateObject(self, 0, z);
 }
+#endif
 
 /**
  * Returns the receiver.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (id) copyWithZone: (NSZone*)z
 {
   return self;
 }
+#endif
 
 /**
  * <p>
@@ -1264,10 +1371,12 @@ static id gs_weak_load(id obj)
  *   </code>
  * </p>
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (id) new
 {
   return [[self alloc] init];
 }
+#endif
 
 /**
  * Returns the class of which the receiver is an instance.<br />
@@ -1276,10 +1385,12 @@ static id gs_weak_load(id obj)
  * NB.  When NSZombie is enabled (see NSDebug.h) this is changed
  * to be the NSZombie class upon object deallocation.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (Class) class
 {
   return object_getClass(self);
 }
+#endif
 
 /**
  * Returns the name of the class of the receiving object by using
@@ -1296,10 +1407,12 @@ static id gs_weak_load(id obj)
  * Creates and returns a copy of the receiver by calling -copyWithZone:
  * passing NSDefaultMallocZone()
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (id) copy
 {
   return [(id)self copyWithZone: NSDefaultMallocZone()];
 }
+#endif
 
 /**
  * Deallocates the receiver by calling NSDeallocateObject() with self
@@ -1384,11 +1497,14 @@ static id gs_weak_load(id obj)
  *   the superclass implementation.
  * </p>
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (void) dealloc
 {
   NSDeallocateObject(self);
 }
+#endif
 
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (void) finalize
 {
 #ifndef OBJC_CAP_ARC
@@ -1448,6 +1564,7 @@ static id gs_weak_load(id obj)
   return;
 #endif
 }
+#endif
 
 /**
  *  This method is an anachronism.  Do not use it.
@@ -1462,35 +1579,43 @@ static id gs_weak_load(id obj)
 /**
  * Initialises the receiver ... the NSObject implementation simply returns self.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (id) init
 {
   return self;
 }
+#endif
 
 /**
  * Creates and returns a mutable copy of the receiver by calling
  * -mutableCopyWithZone: passing NSDefaultMallocZone().
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (id) mutableCopy
 {
   return [(id)self mutableCopyWithZone: NSDefaultMallocZone()];
 }
+#endif
 
 /**
  * Returns the super class from which the receiver was derived.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (Class) superclass
 {
   return class_getSuperclass(self);
 }
+#endif
 
 /**
  * Returns the super class from which the receivers class was derived.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (Class) superclass
 {
   return class_getSuperclass(object_getClass(self));
 }
+#endif
 
 /**
  * Returns a flag to say if instances of the receiver class will
@@ -1501,6 +1626,7 @@ static id gs_weak_load(id obj)
  * <br />If given a null selector, raises NSInvalidArgumentException when
  * in MacOS-X compatibility more, or returns NO otherwise.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (BOOL) instancesRespondToSelector: (SEL)aSelector
 {
   if (aSelector == 0)
@@ -1530,10 +1656,12 @@ static id gs_weak_load(id obj)
       return [self resolveInstanceMethod: aSelector];
     }
 }
+#endif
 
 /**
  * Returns a flag to say whether the receiving class conforms to aProtocol
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (BOOL) conformsToProtocol: (Protocol*)aProtocol
 {
 #ifdef __GNU_LIBOBJC__
@@ -1557,15 +1685,18 @@ static id gs_weak_load(id obj)
   return class_conformsToProtocol(self, aProtocol);
 #endif
 }
+#endif
 
 /**
  * Returns a flag to say whether the class of the receiver conforms
  * to aProtocol.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (BOOL) conformsToProtocol: (Protocol*)aProtocol
 {
   return [[self class] conformsToProtocol: aProtocol];
 }
+#endif
 
 /**
  * Returns a pointer to the C function implementing the method used
@@ -1573,6 +1704,7 @@ static id gs_weak_load(id obj)
  * class.
  * <br />Raises NSInvalidArgumentException if given a null selector.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (IMP) instanceMethodForSelector: (SEL)aSelector
 {
   if (aSelector == 0)
@@ -1584,12 +1716,14 @@ static id gs_weak_load(id obj)
    */
   return class_getMethodImplementation((Class)self, aSelector);
 }
+#endif
 
 /**
  * Returns a pointer to the C function implementing the method used
  * to respond to messages with aSelector.
  * <br />Raises NSInvalidArgumentException if given a null selector.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (IMP) methodForSelector: (SEL)aSelector
 {
   if (aSelector == 0)
@@ -1605,6 +1739,7 @@ static id gs_weak_load(id obj)
    */
   return objc_msg_lookup(self, aSelector);
 }
+#endif
 
 /**
  * Returns a pointer to the C function implementing the method used
@@ -1740,11 +1875,13 @@ static id gs_weak_load(id obj)
  * Sets up the ObjC runtime so that the receiver is used wherever code
  * calls for aClassObject to be used.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (void) poseAsClass: (Class)aClassObject
 {
   [NSException raise: NSInternalInconsistencyException
               format: @"Class posing is not supported"];
 }
+#endif
 
 /**
  * Raises an invalid argument exception providing information about
@@ -1848,6 +1985,7 @@ static id gs_weak_load(id obj)
  * In GNUstep, the [NSObject+enableDoubleReleaseCheck:] method may be used
  * to turn on checking for retain/release errors in this method.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (id) autorelease
 {
   if (double_release_check_enabled)
@@ -1866,22 +2004,27 @@ static id gs_weak_load(id obj)
   (*autorelease_imp)(autorelease_class, autorelease_sel, self);
   return self;
 }
+#endif
 
 /**
  * Dummy method returning the receiver.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (id) autorelease
 {
   return self;
 }
+#endif
 
 /**
  * Returns the receiver.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (Class) class
 {
   return self;
 }
+#endif
 
 /**
  * Returns the hash of the receiver.  Subclasses should ensure that their
@@ -1891,6 +2034,7 @@ static id gs_weak_load(id obj)
  * The default implementation returns a value based on the address
  * of the instance.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (NSUInteger) hash
 {
   /*
@@ -1905,6 +2049,7 @@ static id gs_weak_load(id obj)
    */
   return (NSUInteger)((uintptr_t)self >> shift);
 }
+#endif
 
 /**
  * Tests anObject and the receiver for equality.  The default implementation
@@ -1913,47 +2058,57 @@ static id gs_weak_load(id obj)
  * If a subclass overrides this method, it should also override the -hash
  * method so that if two objects are equal they both have the same hash.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (BOOL) isEqual: (id)anObject
 {
   return (self == anObject);
 }
+#endif
 
 /**
  * Returns YES if aClass is the NSObject class
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (BOOL) isKindOfClass: (Class)aClass
 {
   if (aClass == [NSObject class])
     return YES;
   return NO;
 }
+#endif
 
 /**
  * Returns YES if the class of the receiver is either the same as aClass
  * or is derived from (a subclass of) aClass.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (BOOL) isKindOfClass: (Class)aClass
 {
   Class class = object_getClass(self);
 
   return GSObjCIsKindOf(class, aClass);
 }
+#endif
 
 /**
  * Returns YES if aClass is the same as the receiving class.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (BOOL) isMemberOfClass: (Class)aClass
 {
   return (self == aClass) ? YES : NO;
 }
+#endif
 
 /**
  * Returns YES if the class of the receiver is aClass
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (BOOL) isMemberOfClass: (Class)aClass
 {
   return ([self class] == aClass) ? YES : NO;
 }
+#endif
 
 /**
  * Returns a flag to differentiate between 'true' objects, and objects
@@ -1961,18 +2116,22 @@ static id gs_weak_load(id obj)
  * other objects).<br />
  * The default implementation returns NO.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (BOOL) isProxy
 {
   return NO;
 }
+#endif
 
 /**
  * Returns YES if the receiver is aClass or a subclass of aClass.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (BOOL) isSubclassOfClass: (Class)aClass
 {
   return GSObjCIsKindOf(self, aClass);
 }
+#endif
 
 /**
  * Causes the receiver to execute the method implementation corresponding
@@ -1980,6 +2139,7 @@ static id gs_weak_load(id obj)
  * The method must be one which takes no arguments and returns an object.
  * <br />Raises NSInvalidArgumentException if given a null selector.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (id) performSelector: (SEL)aSelector
 {
   IMP msg;
@@ -2006,6 +2166,7 @@ static id gs_weak_load(id obj)
     }
   return (*msg)(self, aSelector);
 }
+#endif
 
 /**
  * Causes the receiver to execute the method implementation corresponding
@@ -2013,6 +2174,7 @@ static id gs_weak_load(id obj)
  * The method must be one which takes one argument and returns an object.
  * <br />Raises NSInvalidArgumentException if given a null selector.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (id) performSelector: (SEL)aSelector withObject: (id)anObject
 {
   IMP msg;
@@ -2040,6 +2202,7 @@ static id gs_weak_load(id obj)
 
   return (*msg)(self, aSelector, anObject);
 }
+#endif
 
 /**
  * Causes the receiver to execute the method implementation corresponding
@@ -2047,6 +2210,7 @@ static id gs_weak_load(id obj)
  * The method must be one which takes two arguments and returns an object.
  * <br />Raises NSInvalidArgumentException if given a null selector.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (id) performSelector: (SEL)aSelector
 	    withObject: (id) object1
 	    withObject: (id) object2
@@ -2076,6 +2240,7 @@ static id gs_weak_load(id obj)
 
   return (*msg)(self, aSelector, object1, object2);
 }
+#endif
 
 /**
  * Decrements the retain count for the receiver if greater than zero,
@@ -2087,10 +2252,12 @@ static id gs_weak_load(id obj)
  * In GNUstep, the [NSObject+enableDoubleReleaseCheck:] method may be used
  * to turn on checking for ratain/release errors in this method.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (oneway void) release
 {
   release_fast(self);
 }
+#endif
 
 /**
  * The class implementation of the release method is a dummy method
@@ -2098,10 +2265,12 @@ static id gs_weak_load(id obj)
  * in containers (such as NSArray) which will send them retain and
  * release messages.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (oneway void) release
 {
   return;
 }
+#endif
 
 /**
  * Returns a flag to say if the receiver will
@@ -2112,6 +2281,7 @@ static id gs_weak_load(id obj)
  * <br />If given a null selector, raises NSInvalidArgumentException when
  * in MacOS-X compatibility more, or returns NO otherwise.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (BOOL) respondsToSelector: (SEL)aSelector
 {
   Class cls = object_getClass(self);
@@ -2135,15 +2305,18 @@ static id gs_weak_load(id obj)
       return [cls resolveInstanceMethod: aSelector];
     }
 }
+#endif
 
 /**
  * Increments the reference count and returns the receiver.<br />
  * The default implementation does this by calling NSIncrementExtraRefCount()
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (id) retain
 {
   return retain_fast(self);
 }
+#endif
 
 /**
  * The class implementation of the retain method is a dummy method
@@ -2151,10 +2324,12 @@ static id gs_weak_load(id obj)
  * in containers (such as NSArray) which will send them retain and
  * release messages.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (id) retain
 {
   return self;
 }
+#endif
 
 /**
  * Returns the reference count for the receiver.  Each instance has an
@@ -2164,51 +2339,65 @@ static id gs_weak_load(id obj)
  * By convention, objects which should (or can) never be deallocated
  * return the maximum unsigned integer value.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (NSUInteger) retainCount
 {
   return getRetainCount(self);
 }
+#endif
 
 /**
  * The class implementation of the retainCount method always returns
  * the maximum unsigned integer value, as classes can not be deallocated
  * the retain count mechanism is a dummy system for them.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (NSUInteger) retainCount
 {
   return UINT_MAX;
 }
+#endif
 
 /**
  * Returns the receiver.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (id) self
 {
   return self;
 }
+#endif
 
 /**
  * Returns the memory allocation zone in which the receiver is located.
  */
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (NSZone*) zone
 {
   return NSZoneFromPointer(self);
 }
+#endif
 
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (NSZone *) zone
 {
   return NSDefaultMallocZone();
 }
+#endif
 
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (BOOL) resolveClassMethod: (SEL)name
 {
   return NO;
 }
+#endif
 
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 + (BOOL) resolveInstanceMethod: (SEL)name
 {
   return NO;
 }
+#endif
 
 /**
  * Sets the version number of the receiving class.  Should be nonnegative.
@@ -2237,10 +2426,12 @@ static id gs_weak_load(id obj)
   return AUTORELEASE([[GSContentAccessingProxy alloc] initWithObject: self]);
 }
 
+#if !GS_OBJC4_RUNTIME /* libobjc owns this method (objc4 runtime/NSObject.mm) */
 - (id) forwardingTargetForSelector:(SEL)aSelector
 {
   return nil;
 }
+#endif
 @end
 
 
@@ -2321,7 +2512,12 @@ static id gs_weak_load(id obj)
 
 + (id) poseAs: (Class)aClassObject
 {
+#if GS_OBJC4_RUNTIME
+  /* The objc2 runtime has no class posing (class_poseAs is objc1 only). */
+  [self doesNotRecognizeSelector: _cmd];
+#else
   [self poseAsClass: aClassObject];
+#endif
   return self;
 }
 

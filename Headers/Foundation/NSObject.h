@@ -328,16 +328,24 @@ GS_EXPORT_CLASS GS_ROOT_CLASS
  * You must not call this method yourself (except when a subclass
  * calls the superclass method within its own implementation).
  */
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 - (void) finalize;
+#endif
 #endif
 
 #if OS_API_VERSION(GS_API_MACOSX, GS_API_LATEST)
 - (NSString*) className;
 #endif
 
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 + (id) allocWithZone: (NSZone*)z;
+#endif
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 + (id) alloc;
+#endif
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 + (Class) class;
+#endif
 
 /**
  * This method is automatically invoked on any class which implements it
@@ -385,29 +393,51 @@ GS_EXPORT_CLASS GS_ROOT_CLASS
  * of +initialize.
  */
 + (void) initialize;
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 + (IMP) instanceMethodForSelector: (SEL)aSelector;
+#endif
 + (NSMethodSignature*) instanceMethodSignatureForSelector: (SEL)aSelector;
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 + (BOOL) instancesRespondToSelector: (SEL)aSelector;
+#endif
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 + (BOOL) isSubclassOfClass: (Class)aClass;
+#endif
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 + (id) new;
+#endif
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 + (void) poseAsClass: (Class)aClassObject;
+#endif
 + (void) setVersion: (NSInteger)aVersion;
 + (NSInteger) version;
 
 - (id) awakeAfterUsingCoder: (NSCoder*)aDecoder;
 - (Class) classForArchiver;
 - (Class) classForCoder;
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 - (id) copy;
+#endif
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 - (void) dealloc;
+#endif
 - (void) doesNotRecognizeSelector: (SEL)aSelector;
 - (void) forwardInvocation: (NSInvocation*)anInvocation;
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 - (id) init;
+#endif
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 - (IMP) methodForSelector: (SEL)aSelector;
+#endif
 - (NSMethodSignature*) methodSignatureForSelector: (SEL)aSelector;
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 - (id) mutableCopy;
+#endif
 - (id) replacementObjectForArchiver: (NSArchiver*)anArchiver;
 - (id) replacementObjectForCoder: (NSCoder*)anEncoder;
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 - (Class) superclass;
+#endif
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_5, GS_API_LATEST)
 /**
  * This method will be called when attempting to send a message a class that
@@ -419,7 +449,9 @@ GS_EXPORT_CLASS GS_ROOT_CLASS
  * -forwardInvocation: with equivalent semantics.  This will be considerably
  *  slower, but more portable.
  */
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 + (BOOL) resolveClassMethod: (SEL)name;
+#endif
 
 /**
  * This method will be called when attempting to send a message an instance
@@ -431,7 +463,9 @@ GS_EXPORT_CLASS GS_ROOT_CLASS
  * -forwardInvocation: with equivalent semantics.  This will be considerably
  *  slower, but more portable.
  */
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 + (BOOL) resolveInstanceMethod: (SEL)name;
+#endif
 #endif
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_6, GS_API_LATEST)
 /**
@@ -460,7 +494,9 @@ GS_EXPORT_CLASS GS_ROOT_CLASS
  * runtime, you must also implement -forwardInvocation: with equivalent
  * semantics.  This will be considerably slower, but more portable.
  */
+#if !GS_OBJC4_RUNTIME /* declared by <objc/NSObject.h> */
 - (id) forwardingTargetForSelector: (SEL)aSelector;
+#endif
 
 #endif
 @end

@@ -92,6 +92,12 @@
 /* These typedefs must be in place before GSObjCRuntime.h is imported.
  */
 
+#if	GS_OBJC4_RUNTIME
+/* libobjc's own header defines NSInteger/NSUInteger (long/unsigned long,
+ * the same types as intptr_t/uintptr_t here) and sets NSINTEGER_DEFINED.
+ */
+#import <objc/NSObjCRuntime.h>
+#endif
 #if     !defined(NSINTEGER_DEFINED)
 typedef	intptr_t	NSInteger;
 typedef	uintptr_t	NSUInteger;
