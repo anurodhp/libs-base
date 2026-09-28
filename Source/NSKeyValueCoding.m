@@ -40,7 +40,12 @@
 #include "NSKeyValueMutableArray.m"
 #include "NSKeyValueMutableSet.m"
 
-#if defined(__OBJC2__)
+/* The KVC cache (NSKeyValueCoding+Caching.m) needs libobjc2 (objc/slot.h)
+ * and is built only for that runtime (GNUmakefile, OBJC_RUNTIME_LIB ng);
+ * objc4 defines __OBJC2__ too, so test for it explicitly.
+ */
+#if defined(__OBJC2__) && !GS_OBJC4_RUNTIME
+#define GS_KVC_CACHING 1
 #import "NSKeyValueCoding+Caching.h"
 #endif
 
@@ -147,7 +152,7 @@ SetValueForKey(NSObject *self, id anObject, const char *key, unsigned size)
   GSObjCSetVal(self, key, anObject, sel, type, size, off);
 }
 
-#if !defined(__OBJC2__)
+#if !defined(GS_KVC_CACHING)
 static id ValueForKey(NSObject *self, const char *key, unsigned size)
 {
   SEL		sel = 0;
@@ -531,7 +536,7 @@ static id ValueForKey(NSObject *self, const char *key, unsigned size)
 
 - (id) valueForKey: (NSString*)aKey
 {
-  #if defined(__OBJC2__)
+  #if defined(GS_KVC_CACHING)
   return valueForKeyWithCaching(self, aKey);
   #else
   unsigned	size = [aKey length] * 8;

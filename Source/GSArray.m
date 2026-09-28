@@ -58,7 +58,10 @@ static Class	GSArrayClass;
  */
 #if	!GNUSTEP_WITH_ASAN
 static Class	GSInlineArrayClass;
-#if defined(__WIN32)
+#if defined(__WIN32) || defined(__APPLE__)
+/* Mach-O: a weak reference to a symbol no linked image defines is a link
+ * error without -undefined dynamic_lookup, so no LSAN detection there.
+ */
 static int (*lsanCheck)(void) = NULL;	// No weak symbol support :-(
 #else
 /* For runtime detection of LSAN, we use a weak symbol for one of its

@@ -28,8 +28,8 @@
 #import "Foundation/NSUserDefaults.h"
 #import "Foundation/NSJSONSerialization.h"
 
-static IMP originalRead = 0;
-static IMP originalWrite = 0;
+static id (*originalRead)(id, SEL, id, NSPropertyListReadOptions, NSPropertyListFormat*, NSError**) = 0;
+static id (*originalWrite)(id, SEL, id, NSPropertyListFormat, NSString**) = 0;
 
 @implementation NSPropertyListSerialization (PLUtilAdditions)
 + (NSData*) _pdataFromPropertyList: (id)aPropertyList
@@ -115,11 +115,11 @@ static IMP originalWrite = 0;
   replacementWrite = class_getClassMethod(self,
     @selector(_pdataFromPropertyList:format:errorDescription:));
 
-  originalRead = class_replaceMethod(object_getClass(self),
+  originalRead = (id (*)(id, SEL, id, NSPropertyListReadOptions, NSPropertyListFormat*, NSError**))class_replaceMethod(object_getClass(self),
     @selector(propertyListWithData:options:format:error:),
     method_getImplementation(replacementRead),
     method_getTypeEncoding(replacementRead));
-  originalWrite = class_replaceMethod(object_getClass(self),
+  originalWrite = (id (*)(id, SEL, id, NSPropertyListFormat, NSString**))class_replaceMethod(object_getClass(self),
     @selector(dataFromPropertyList:format:errorDescription:),
     method_getImplementation(replacementWrite),
     method_getTypeEncoding(replacementWrite));
