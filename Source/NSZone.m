@@ -238,13 +238,26 @@ static NSZone default_zone =
  */
 NSZone	*__nszone_private_hidden_default_zone = &default_zone;
 
+#if GS_OBJC4_RUNTIME
+#include <malloc/malloc.h>
+/* On Apple NSZone is malloc_zone_t, so libobjc's -zone and +zone return
+ * malloc_default_zone() (objc4 runtime/NSObject.mm _objc_rootZone, the
+ * __OBJC2__ branch), and that pointer reaches the functions below through
+ * allocWithZone:, copyWithZone: and [self zone].  It is not one of our
+ * zones; it means the default zone.
+ */
+#define GS_ZONE(z) (((z) == 0 || (void*)(z) == (void*)malloc_default_zone()) \
+  ? &default_zone : (z))
+#else
+#define GS_ZONE(z) ((z) == 0 ? &default_zone : (z))
+#endif
+
 
 
 GS_DECLARE void
 NSSetZoneName (NSZone *zone, NSString *name)
 {
-  if (!zone)
-    zone = NSDefaultMallocZone();
+  zone = GS_ZONE(zone);
   GS_MUTEX_LOCK(zoneLock);
   name = [name copy];
   if (zone->name != nil)
@@ -256,8 +269,7 @@ NSSetZoneName (NSZone *zone, NSString *name)
 GS_DECLARE NSString*
 NSZoneName (NSZone *zone)
 {
-  if (!zone)
-    zone = NSDefaultMallocZone();
+  zone = GS_ZONE(zone);
   return zone->name;
 }
 
@@ -1757,7 +1769,8 @@ NSZoneCalloc (NSZone *zone, NSUInteger elems, NSUInteger bytes)
 {
   void *mem;
 
-  if (0 == zone || NSDefaultMallocZone() == zone)
+  zone = GS_ZONE(zone);
+  if (NSDefaultMallocZone() == zone)
     {
       mem = calloc(elems, bytes);
       if (mem != NULL)
@@ -1797,48 +1810,42 @@ GSAtomicMallocZone (void)
 GS_DECLARE void*
 NSZoneMalloc (NSZone *zone, NSUInteger size)
 {
-  if (!zone)
-    zone = NSDefaultMallocZone();
+  zone = GS_ZONE(zone);
   return (zone->malloc)(zone, size);
 }
 
 GS_DECLARE void*
 NSZoneRealloc (NSZone *zone, void *ptr, NSUInteger size)
 {
-  if (!zone)
-    zone = NSDefaultMallocZone();
+  zone = GS_ZONE(zone);
   return (zone->realloc)(zone, ptr, size);
 }
 
 GS_DECLARE void
 NSRecycleZone (NSZone *zone)
 {
-  if (!zone)
-    zone = NSDefaultMallocZone();
+  zone = GS_ZONE(zone);
   (zone->recycle)(zone);
 }
 
 GS_DECLARE void
 NSZoneFree (NSZone *zone, void *ptr)
 {
-  if (!zone)
-    zone = NSDefaultMallocZone();
+  zone = GS_ZONE(zone);
   (zone->free)(zone, ptr);
 }
 
 BOOL
 NSZoneCheck (NSZone *zone)
 {
-  if (!zone)
-    zone = NSDefaultMallocZone();
+  zone = GS_ZONE(zone);
   return (zone->check)(zone);
 }
 
 struct NSZoneStats
 NSZoneStats (NSZone *zone)
 {
-  if (!zone)
-    zone = NSDefaultMallocZone();
+  zone = GS_ZONE(zone);
   return (zone->stats)(zone);
 }
 

@@ -302,8 +302,17 @@ __asm__(
   ".p2align 2\n"
   ".private_extern _gs_objc4_forward\n"
   "_gs_objc4_forward:\n"
+  /* Unwind info: gs_objc4_forward_lookup() raises (unrecognized selector,
+   * or an exception from -methodSignatureForSelector:) while this frame
+   * is live, and the unwinder must be able to step through it to reach
+   * the caller's handler. Standard x29/x30 frame, as clang emits.
+   */
+  "  .cfi_startproc\n"
   "  stp x29, x30, [sp, #-16]!\n"
   "  mov x29, sp\n"
+  "  .cfi_def_cfa w29, 16\n"
+  "  .cfi_offset w30, -8\n"
+  "  .cfi_offset w29, -16\n"
   "  sub sp, sp, #208\n"
   "  stp x0, x1, [sp, #0]\n"
   "  stp x2, x3, [sp, #16]\n"
@@ -328,6 +337,7 @@ __asm__(
   "  mov sp, x29\n"
   "  ldp x29, x30, [sp], #16\n"
   "  br x16\n"
+  "  .cfi_endproc\n"
 );
 #else
 #error objc_setForwardHandler forwarding is only implemented for arm64

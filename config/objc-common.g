@@ -64,5 +64,11 @@ GS_OBJC_ROOT_CLASS @interface NSObject
 @end
 @implementation NSConstantString
 @end
+#elif defined(__OBJC2__)
+/* objc4 declares and implements the root class NSObject itself
+ * (runtime/NSObject.h, runtime/NSObject.mm); <objc/Object.h> declares
+ * nothing under __OBJC2__ (runtime/Object.h:38, "#if __OBJC__ && !__OBJC2__").
+ */
+#include <objc/NSObject.h>
 #endif  /* __APPLE__ */
 
