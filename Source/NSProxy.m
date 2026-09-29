@@ -42,6 +42,9 @@
 #include <objc/objc-arc.h>
 #endif
 #endif
+#if GS_OBJC4_RUNTIME
+#import <objc/objc-internal.h>	/* _objc_rootTryRetain, _objc_rootIsDeallocating */
+#endif
 
 @class	NSDistantObject;
 
@@ -593,5 +596,69 @@
   return NSZoneFromPointer(self);
 }
 
-@end
+#if GS_OBJC4_RUNTIME
+/* Weak-reference support for Apple's objc4 runtime.
+ *
+ * objc4 treats every root class other than NSObject as having custom
+ * retain/release (objc4 runtime/objc-runtime-new.mm:865-867), so a weak
+ * store or load of an NSProxy instance, or of an NSProxy subclass's class
+ * object, calls -allowsWeakReference (runtime/objc-weak.mm:403-417) or
+ * -retainWeakReference (runtime/NSObject.mm:566-580) on the object while
+ * holding the SideTable lock.  Those call sites mean to skip a selector the
+ * class does not implement, but compare the lookup result against
+ * _objc_msgForward while the lookup returns _objc_msgForward_impcache
+ * (runtime/objc-runtime-new.mm:6395), so without these methods the call
+ * was forwarded: the class object raised "unrecognized selector" and the
+ * unwind left the lock held (DAR-450: gnustep-gui's GSListener in
+ * NSRegisterServicesProvider), and an instance forwarded the weak-load
+ * retain to its target.  Apple's own NSProxy implements both
+ * (Foundation.framework/Headers/NSProxy.h:28-29 in the iPhoneOS 14.4 SDK).
+ *
+ * The bodies are those of libobjc's NSObject (runtime/NSObject.mm:
+ * 2485-2516): on objc4 an NSProxy's reference count is libobjc's own
+ * (NSIncrementExtraRefCount and friends are _objc_root* calls, NSObject.m)
+ * and class objects are never deallocated.  A subclass overriding them
+ * must not raise or reach -forwardInvocation:, since the lock is held.
+ */
++ (BOOL) _tryRetain
+{
+  return YES;
+}
 
+- (BOOL) _tryRetain
+{
+  return _objc_rootTryRetain(self);
+}
+
++ (BOOL) _isDeallocating
+{
+  return NO;
+}
+
+- (BOOL) _isDeallocating
+{
+  return _objc_rootIsDeallocating(self);
+}
+
++ (BOOL) allowsWeakReference
+{
+  return YES;
+}
+
++ (BOOL) retainWeakReference
+{
+  return YES;
+}
+
+- (BOOL) allowsWeakReference
+{
+  return ! [self _isDeallocating];
+}
+
+- (BOOL) retainWeakReference
+{
+  return [self _tryRetain];
+}
+#endif
+
+@end
