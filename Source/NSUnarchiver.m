@@ -1215,6 +1215,22 @@ scalarSize(char type)
       case _GSC_UCHR:
 	/* Encoding of chars is not consistant across platforms, so we
 	   loosen the type checking a little */
+#if defined(_C_BOOL)
+	/* BOOL is a char (encoding c/C) in archives written by GNUstep on
+	 * most platforms, but is a C99 _Bool (encoding B) where the runtime
+	 * defines it so (objc4 on arm64: objc/objc.h, OBJC_BOOL_IS_BOOL).
+	 * A nib written by the former and read by the latter must still
+	 * decode: read the archived char and store it as a _Bool.
+	 */
+	if (*type == _C_BOOL)
+	  {
+	    unsigned char	c;
+
+	    (*desImp)(src, desSel, &c, @encode(unsigned char), &cursor, nil);
+	    *(_Bool*)address = (c != 0);
+	    return;
+	  }
+#endif
 	if (*type != type_map[_GSC_CHR] && *type != type_map[_GSC_UCHR])
 	  {
 	    [NSException raise: NSInternalInconsistencyException
@@ -1299,6 +1315,16 @@ scalarSize(char type)
 	return;
 
       case _GSC_BOOL:
+	/* The reverse of the _GSC_CHR case above: an archived _Bool read
+	 * into a char-typed BOOL. */
+	if (*type == _C_CHR || *type == _C_UCHR)
+	  {
+	    _Bool	b;
+
+	    (*desImp)(src, desSel, &b, @encode(_Bool), &cursor, nil);
+	    *(unsigned char*)address = b ? 1 : 0;
+	    return;
+	  }
 	if (*type != type_map[_GSC_BOOL])
 	  {
 	    [NSException raise: NSInternalInconsistencyException
