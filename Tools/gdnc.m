@@ -1220,15 +1220,40 @@ main(int argc, char** argv, char** env)
     server = [GDNCServer new];
 
     /*
-     * Close standard input, output, and error to run as daemon.
+     * Detach standard input, output, and error to run as daemon.
+     *
+     * They are pointed at /dev/null rather than closed.  The server's
+     * port is already open at this point, so a closed descriptor 0, 1 or
+     * 2 is reused by the next connection it accepts, and anything that
+     * later writes to stdout or stderr directly (fprintf, not NSLog)
+     * lands in that client's message stream: GSPrivateTimeNow() in
+     * NSCalendarDate.m prints "WARNING: system time changed" to stderr
+     * whenever the clock is stepped (chronyd at boot), and the client
+     * (GWorkspace) then reports "bad data received on port handle" and
+     * drops the connection.  gdomap.c does the same for its daemon mode
+     * (it reopens /dev/null on descriptors 0-2 after closing them).
      */
+#ifndef __MINGW__
+    {
+      int	fd = open("/dev/null", O_RDWR);
+
+      if (fd >= 0)
+	{
+	  dup2(fd, 0);
+	  dup2(fd, 1);
+	  if (debugging == NO)
+	    {
+	      dup2(fd, 2);
+	    }
+	  if (fd > 2)
+	    {
+	      close(fd);
+	    }
+	}
+    }
+#else
     [[NSFileHandle fileHandleWithStandardInput] closeFile];
     [[NSFileHandle fileHandleWithStandardOutput] closeFile];
-#ifndef __MINGW__
-    if (debugging == NO)
-      {
-	[[NSFileHandle fileHandleWithStandardError] closeFile];
-      }
 #endif
 
     RELEASE(pool);
