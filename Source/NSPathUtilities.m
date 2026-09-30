@@ -1681,7 +1681,7 @@ NSUserName(void)
       struct passwd pwent;
       struct passwd *p;
 
-      if (getpwuid_r(uid, &pwent, buf, sizeof(buf), &p) == 0)
+      if (getpwuid_r(uid, &pwent, buf, sizeof(buf), &p) == 0 && p != 0)
         {
           loginName = pwent.pw_name;
         }
@@ -1847,7 +1847,7 @@ NSFullUserName(void)
       struct passwd *p;
       char buf[BUFSIZ*10];
 
-      if (getpwnam_r([userName cString], &pw, buf, sizeof(buf), &p) == 0)
+      if (getpwnam_r([userName cString], &pw, buf, sizeof(buf), &p) == 0 && p != 0)
         {
 	  if (*pw.pw_gecos)
 	    {

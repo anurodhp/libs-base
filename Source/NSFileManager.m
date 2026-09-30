@@ -489,7 +489,7 @@ static gs_mutex_t       classLock = GS_MUTEX_INIT_STATIC;
           char buf[BUFSIZ*10];
 
 	  if (getpwnam_r([str cStringUsingEncoding: defaultEncoding],
-            &pw, buf, sizeof(buf), &p) == 0)
+            &pw, buf, sizeof(buf), &p) == 0 && p != 0)
 	    {
 	      ok = (chown(lpath, pw.pw_uid, -1) == 0);
 	      (void)chown(lpath, -1, pw.pw_gid);
@@ -553,7 +553,7 @@ static gs_mutex_t       classLock = GS_MUTEX_INIT_STATIC;
       char buf[BUFSIZ*10];
 
       if (getgrnam_r([str cStringUsingEncoding: defaultEncoding], &gp,
-        buf, sizeof(buf), &p) == 0)
+        buf, sizeof(buf), &p) == 0 && p != 0)
         {
 	  if (chown(lpath, -1, gp.gr_gid) == 0)
 	    ok = YES;
@@ -4010,7 +4010,7 @@ static NSSet	*fileKeys = nil;
   struct group *p;
   char buf[BUFSIZ*10];
 
-  if (getgrgid_r(statbuf.st_gid, &gp, buf, sizeof(buf), &p) == 0)
+  if (getgrgid_r(statbuf.st_gid, &gp, buf, sizeof(buf), &p) == 0 && p != 0)
     {
       group = [NSString stringWithCString: gp.gr_name
 				 encoding: defaultEncoding];
@@ -4177,7 +4177,7 @@ static NSSet	*fileKeys = nil;
   struct passwd *p;
   char buf[BUFSIZ*10];
 
-  if (getpwuid_r(statbuf.st_uid, &pw, buf, sizeof(buf), &p) == 0)
+  if (getpwuid_r(statbuf.st_uid, &pw, buf, sizeof(buf), &p) == 0 && p != 0)
     {
       owner = [NSString stringWithCString: pw.pw_name
 				 encoding: defaultEncoding];
