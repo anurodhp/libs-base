@@ -1039,6 +1039,22 @@ if (aValue >= -1 && aValue <= 12)\
   double doublebuf;
   void  *buffer;
 
+#if defined(_C_BOOL)
+  /* Where BOOL is C99 _Bool (objc4 on arm64: objc/objc.h,
+   * OBJC_BOOL_IS_BOOL) NSBoolNumber's -objCType is "B", which the switch
+   * below does not know.  Archive it as the char it is on every other
+   * GNUstep platform (@encode(BOOL) is "c" there), so the archive reads
+   * back anywhere; -initWithCoder: also accepts "B".
+   */
+  if (type[0] == _C_BOOL)
+    {
+      signed char	c = [self boolValue] ? 1 : 0;
+
+      [coder encodeValueOfObjCType: @encode(char) at: @encode(signed char)];
+      [coder encodeValueOfObjCType: @encode(signed char) at: &c];
+      return;
+    }
+#endif
   [coder encodeValueOfObjCType: @encode(char) at: type];
 
   switch (type[0])
@@ -1093,6 +1109,15 @@ if (aValue >= -1 && aValue <= 12)\
   [coder decodeValueOfObjCType: @encode(char) at: type];
   switch (type[0])
     {
+#if defined(_C_BOOL)
+      case _C_BOOL:
+        {
+          _Bool	b;
+
+          [coder decodeValueOfObjCType: @encode(_Bool) at: &b];
+          return [self initWithBool: b ? YES : NO];
+        }
+#endif
       case 'c':
       case 'C':
         buffer = &charbuf; break;
