@@ -20,6 +20,28 @@
    */ 
 
 #import "Foundation/NSObject.h"
+#import "Foundation/NSArray.h"
+#import "Foundation/NSDictionary.h"
+
+#if defined(NeXT_RUNTIME)
+/* Apple's objc4 has no _NSBlock class: libsystem_blocks only exports
+ * zero-filled OBJC_MAX_CLASS_SIZE buffers (libclosure data.c:22-27) for the
+ * runtime's block isa pointers, and expects the Foundation layer to build
+ * classes into them in place with objc_initializeClassPair()
+ * (objc4 runtime/objc-internal.h:56-60,83-89).  Do that here; without it any
+ * message sent to a block (-retain from ARC, NSTimer's block initialiser) is
+ * a message to a non-class isa.
+ */
+#include <stdlib.h>
+#include <string.h>
+extern void *_NSConcreteStackBlock[32];
+extern void *_NSConcreteMallocBlock[32];
+extern void *_NSConcreteGlobalBlock[32];
+extern Class objc_initializeClassPair(Class, const char *, Class, Class);
+/* The empty-collection singletons clang references for @[] and @{}. */
+id __NSArray0__;
+id __NSDictionary0__;
+#endif
 
 @interface GSBlock : NSObject
 @end
@@ -32,6 +54,48 @@
   Method	*methods = class_copyMethodList(self, &methodCount);
   id		blockClass = objc_lookUpClass("_NSBlock");
   Protocol	*nscopying = NULL;
+
+#if defined(NeXT_RUNTIME)
+  __NSArray0__ = [[NSArray alloc] init];
+  __NSDictionary0__ = [[NSDictionary alloc] init];
+  if (nil == blockClass)
+    {
+      /* _NSBlock, then the three concrete classes built in place over
+       * libclosure's isa buffers.  The methods go on _NSBlock before the
+       * subclasses exist so their custom-RR flags are right from the start.
+       */
+      static const struct { const char *name; void **buf; } kinds[] = {
+	{ "__NSStackBlock__", _NSConcreteStackBlock },
+	{ "__NSMallocBlock__", _NSConcreteMallocBlock },
+	{ "__NSGlobalBlock__", _NSConcreteGlobalBlock },
+      };
+      unsigned	i;
+
+      blockClass = objc_allocateClassPair([NSObject class], "_NSBlock", 0);
+      for (m = methods; NULL != m && NULL != *m; m++)
+	{
+	  class_addMethod(blockClass, method_getName(*m),
+	    method_getImplementation(*m), method_getTypeEncoding(*m));
+	}
+      class_addProtocol(blockClass, objc_getProtocol("NSCopying"));
+      objc_registerClassPair(blockClass);
+      for (i = 0; i < sizeof(kinds) / sizeof(kinds[0]); i++)
+	{
+	  /* The metaclass buffer is OBJC_MAX_CLASS_SIZE too; it lives forever. */
+	  void	*meta = calloc(32, sizeof(void *));
+	  Class	c = objc_initializeClassPair(blockClass, kinds[i].name,
+	    (Class)kinds[i].buf, (Class)meta);
+
+	  if (Nil == c)
+	    {
+	      abort();
+	    }
+	  objc_registerClassPair(c);
+	}
+      free(methods);
+      return;
+    }
+#endif
 
   /* If we don't have an _NSBlock class, we don't have blocks support in the
    * runtime, so give up.
