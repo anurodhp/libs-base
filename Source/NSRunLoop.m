@@ -61,7 +61,15 @@
 #include <math.h>
 #include <time.h>
 
-#if GS_USE_LIBDISPATCH_RUNLOOP
+/* Apple's libdispatch (any Mach platform) hands out its main queue's wakeup
+ * handle as a Mach port name, not a file descriptor.  Registering that number
+ * as an ET_RDESC watcher makes the select() in GSRunLoopCtxt run over an
+ * fd_set that is far too small (the port name is typically in the thousands),
+ * which overruns the set on the stack and makes the loop skip real fds, so
+ * input arrives in bursts hundreds of milliseconds late.  The swift-corelibs
+ * libdispatch on Linux/BSD returns an fd, which is what this integration needs.
+ */
+#if GS_USE_LIBDISPATCH_RUNLOOP && !defined(__APPLE__)
 #  define RL_INTEGRATE_DISPATCH 1
 #  ifdef HAVE_DISPATCH_H
 #    include <dispatch.h>
