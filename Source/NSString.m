@@ -679,6 +679,133 @@ GSICUCachedCollator(NSStringCompareOptions mask, NSLocale *locale)
 #endif	// GS_USE_ICU
 
 
+
+/* ---- canonical normalization (NFD/NFC) without ICU ----
+ * Used by -decomposedStringWithCanonicalMapping and -precomposedStringWithCanonicalMapping when GNUstep is built
+ * without ICU. BMP only (surrogates pass through); Hangul is done algorithmically (UAX #15). */
+#include "GSNormalizeData.h"
+
+static int
+GSNormClass(unichar c)
+{
+  size_t lo = 0, hi = sizeof GSNormClasses / sizeof GSNormClasses[0];
+
+  while (lo < hi)
+    {
+      size_t mid = (lo + hi) / 2;
+
+      if (GSNormClasses[mid][0] == c) return GSNormClasses[mid][1];
+      if (GSNormClasses[mid][0] < c) lo = mid + 1; else hi = mid;
+    }
+  return 0;
+}
+
+static int
+GSNormCompose2(unichar a, unichar b)
+{
+  size_t lo = 0, hi = sizeof GSNormPairs / sizeof GSNormPairs[0];
+
+  if (a >= 0x1100 && a <= 0x1112 && b >= 0x1161 && b <= 0x1175)
+    return 0xAC00 + ((a - 0x1100) * 21 + (b - 0x1161)) * 28;
+  if (a >= 0xAC00 && a <= 0xD7A3 && (a - 0xAC00) % 28 == 0 && b >= 0x11A8 && b <= 0x11C2)
+    return a + (b - 0x11A7);
+  while (lo < hi)
+    {
+      size_t mid = (lo + hi) / 2;
+
+      if (GSNormPairs[mid][0] == a && GSNormPairs[mid][1] == b) return GSNormPairs[mid][2];
+      if (GSNormPairs[mid][0] < a || (GSNormPairs[mid][0] == a && GSNormPairs[mid][1] < b)) lo = mid + 1; else hi = mid;
+    }
+  return -1;
+}
+
+static NSString *
+GSNormalize(NSString *s, BOOL compose)
+{
+  NSUInteger	n = [s length], i, o = 0, cap;
+  unichar	*src, *buf;
+  NSString	*result;
+
+  if (n == 0) return s;
+  src = NSZoneMalloc(NSDefaultMallocZone(), n * sizeof(unichar));
+  [s getCharacters: src range: NSMakeRange(0, n)];
+  cap = n * 4 + 8;
+  buf = NSZoneMalloc(NSDefaultMallocZone(), cap * sizeof(unichar));
+  for (i = 0; i < n; i++)
+    {
+      unichar c = src[i];
+
+      if (c >= 0xAC00 && c <= 0xD7A3)
+	{
+	  unsigned int si = c - 0xAC00;
+
+	  buf[o++] = 0x1100 + si / 588;
+	  buf[o++] = 0x1161 + (si % 588) / 28;
+	  if (si % 28) buf[o++] = 0x11A7 + si % 28;
+	}
+      else
+	{
+	  size_t lo = 0, hi = sizeof GSNormDecomp / sizeof GSNormDecomp[0];
+	  BOOL found = NO;
+
+	  while (lo < hi)
+	    {
+	      size_t mid = (lo + hi) / 2;
+
+	      if (GSNormDecomp[mid][0] == c)
+		{
+		  unsigned int k, len = GSNormDecompLen[mid];
+
+		  for (k = 0; k < len; k++) buf[o++] = GSNormDecompChars[GSNormDecomp[mid][1] + k];
+		  found = YES;
+		  break;
+		}
+	      if (GSNormDecomp[mid][0] < c) lo = mid + 1; else hi = mid;
+	    }
+	  if (!found) buf[o++] = c;
+	}
+    }
+  /* canonical ordering: stable sort each run of non-starters by combining class */
+  for (i = 1; i < o; i++)
+    {
+      NSUInteger j = i;
+      int cls = GSNormClass(buf[i]);
+
+      if (cls == 0) continue;
+      while (j > 0 && GSNormClass(buf[j - 1]) > cls)
+	{
+	  unichar t = buf[j - 1]; buf[j - 1] = buf[j]; buf[j] = t;
+	  j--;
+	}
+    }
+  if (compose && o > 1)
+    {
+      NSUInteger comp = 0, starter = 0;
+      int lastClass = 0;
+      BOOL haveStarter = NO;
+
+      for (i = 0; i < o; i++)
+	{
+	  unichar ch = buf[i];
+	  int cls = GSNormClass(ch), c;
+
+	  if (haveStarter && (c = GSNormCompose2(buf[starter], ch)) >= 0 && (lastClass < cls || lastClass == 0))
+	    {
+	      buf[starter] = (unichar)c;
+	      continue;
+	    }
+	  if (cls == 0) { starter = comp; haveStarter = YES; }
+	  lastClass = cls;
+	  buf[comp++] = ch;
+	}
+      o = comp;
+    }
+  result = [NSString stringWithCharacters: buf length: o];
+  NSZoneFree(NSDefaultMallocZone(), src);
+  NSZoneFree(NSDefaultMallocZone(), buf);
+  return result;
+}
+
 @implementation NSString
 //  NSString itself is an abstract class which provides factory
 //  methods to generate objects of unspecified subclasses.
@@ -1965,7 +2092,7 @@ register_printf_atsign ()
 #if (GS_USE_ICU == 1) && (defined(HAVE_UNICODE_UNORM2_H) || defined(HAVE_ICU_H))
   return [self _normalizedICUStringOfType: "nfc" mode: UNORM2_DECOMPOSE];
 #else
-  return [self notImplemented: _cmd];
+  return GSNormalize(self, NO);
 #endif
 }
  
@@ -4620,7 +4747,7 @@ static NSFileManager *fm = nil;
 #if (GS_USE_ICU == 1) && (defined(HAVE_UNICODE_UNORM2_H) || defined(HAVE_ICU_H))
    return [self _normalizedICUStringOfType: "nfc" mode: UNORM2_COMPOSE];
 #else
-  return [self notImplemented: _cmd];
+  return GSNormalize(self, YES);
 #endif
 }
  
