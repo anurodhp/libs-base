@@ -446,13 +446,7 @@ static Class	runLoopClass;
     }
   else
     {
-      int	status = 1;
-
-      if (setsockopt(desc, SOL_SOCKET, SO_KEEPALIVE, (char*)&status,
-	sizeof(status)) < 0)
-        {
-          NSLog(@"failed to turn on keepalive for connected socket %d", desc);
-        }
+      /* No SO_KEEPALIVE on a Unix-domain socket (see the accepted case). */
       addrNum = 0;
       caller = YES;
       [aPort addHandle: self forSend: YES];
@@ -1653,14 +1647,9 @@ typedef	struct {
         }
       else
 	{
-	  int	status = 1;
-
-	  if (setsockopt(desc, SOL_SOCKET, SO_KEEPALIVE, (char*)&status,
-	    sizeof(status)) < 0)
-            {
-              NSLog(@"failed to turn on keepalive for accepted socket %d",
-                desc);
-            }
+	  /* No SO_KEEPALIVE: these are Unix-domain sockets, for which it is a
+	   * TCP-level option; Darwin refuses it, and the failure was logged for
+	   * every connection. */
 	  /*
 	   * Create a handle for the socket and set it up so we are its
 	   * receiving port, and it's waiting to get the port name from
