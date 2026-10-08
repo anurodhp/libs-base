@@ -942,6 +942,67 @@ failure:
 }
 
 /**
+ * Reads the file at path (the options are accepted for API compatibility;
+ * the whole file is always read).  On failure returns nil and, if errorPtr
+ * is not NULL, stores an NSError in the Cocoa error domain.
+ */
+- (id) initWithContentsOfFile: (NSString*)path
+                      options: (NSUInteger)options
+                        error: (NSError**)errorPtr
+{
+  NSFileManager *fm = [NSFileManager defaultManager];
+  BOOL		missing = ![fm fileExistsAtPath: path];
+  self = [self initWithContentsOfFile: path];
+  if (nil == self && NULL != errorPtr)
+    {
+      NSDictionary *info = [NSDictionary dictionaryWithObjectsAndKeys:
+	path, @"NSFilePath",
+	missing ? @"The file does not exist." : @"The file could not be read.",
+	NSLocalizedDescriptionKey, nil];
+      *errorPtr = [NSError errorWithDomain: NSCocoaErrorDomain
+				      code: missing ? 260 : 256
+				  userInfo: info];
+    }
+  return self;
+}
+
+- (id) initWithContentsOfURL: (NSURL*)url
+                     options: (NSUInteger)options
+                       error: (NSError**)errorPtr
+{
+  if ([url isFileURL])
+    {
+      return [self initWithContentsOfFile: [url path]
+				  options: options
+				    error: errorPtr];
+    }
+  self = [self initWithContentsOfURL: url];
+  if (nil == self && NULL != errorPtr)
+    {
+      *errorPtr = [NSError errorWithDomain: NSCocoaErrorDomain
+				      code: 256
+				  userInfo: nil];
+    }
+  return self;
+}
+
++ (id) dataWithContentsOfFile: (NSString*)path
+                      options: (NSUInteger)options
+                        error: (NSError**)errorPtr
+{
+  return AUTORELEASE([[self allocWithZone: NSDefaultMallocZone()]
+    initWithContentsOfFile: path options: options error: errorPtr]);
+}
+
++ (id) dataWithContentsOfURL: (NSURL*)url
+                     options: (NSUInteger)options
+                       error: (NSError**)errorPtr
+{
+  return AUTORELEASE([[self allocWithZone: NSDefaultMallocZone()]
+    initWithContentsOfURL: url options: options error: errorPtr]);
+}
+
+/**
  *  Initialize with data pointing to contents of file at path.  Bytes are
  *  only "swapped in" as needed.  File should not be moved or deleted for
  *  the life of this object.

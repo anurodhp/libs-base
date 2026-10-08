@@ -41,6 +41,15 @@ extern "C" {
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_6,GS_API_LATEST)
 enum {
+  NSDataReadingMappedIfSafe = 1UL << 0,
+  NSDataReadingUncached = 1UL << 1,
+  NSDataReadingMappedAlways = 1UL << 3,
+};
+typedef NSUInteger NSDataReadingOptions;
+#endif
+
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_6,GS_API_LATEST)
+enum {
   NSDataSearchBackwards = (1UL << 0),
   NSDataSearchAnchored = (1UL << 1),
 };
@@ -100,6 +109,14 @@ GS_EXPORT_CLASS
 #if OS_API_VERSION(GS_API_MACOSX, GS_API_LATEST)
 + (id) dataWithContentsOfURL: (NSURL*)url;
 #endif
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_6,GS_API_LATEST)
++ (id) dataWithContentsOfFile: (NSString*)path
+                      options: (NSUInteger)options
+                        error: (NSError**)errorPtr;
++ (id) dataWithContentsOfURL: (NSURL*)url
+                     options: (NSUInteger)options
+                       error: (NSError**)errorPtr;
+#endif
 + (id) dataWithData: (NSData*)data;
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_9,GS_API_LATEST)
 - (id) initWithBase64EncodedData: (NSData*)base64Data
@@ -127,6 +144,14 @@ GS_EXPORT_CLASS
 	      freeWhenDone: (BOOL)shouldFree;
 #endif
 - (id) initWithContentsOfFile: (NSString*)path;
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_6,GS_API_LATEST)
+- (id) initWithContentsOfFile: (NSString*)path
+                      options: (NSUInteger)options
+                        error: (NSError**)errorPtr;
+- (id) initWithContentsOfURL: (NSURL*)url
+                     options: (NSUInteger)options
+                       error: (NSError**)errorPtr;
+#endif
 - (id) initWithContentsOfMappedFile: (NSString*)path;
 #if OS_API_VERSION(GS_API_MACOSX, GS_API_LATEST)
 - (id) initWithContentsOfURL: (NSURL*)url;
