@@ -654,6 +654,28 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 
 #else
 
+
+/* select() works on an fd_set of FD_SETSIZE bits.  A descriptor outside it (or
+ * a value that is not a descriptor at all, like a Mach port name) would be
+ * written past the end of the set, so it is refused, once with a warning. */
+static BOOL
+selectableFd(int fd, GSRunLoopWatcher *info)
+{
+  static int	warned = 0;
+
+  if (fd >= 0 && fd < FD_SETSIZE)
+    {
+      return YES;
+    }
+  if (warned++ < 8)
+    {
+      NSLog(@"NSRunLoop: ignoring event source %@ with descriptor %d: "
+	@"select() handles descriptors below %d only",
+	info->receiver, fd, (int)FD_SETSIZE);
+    }
+  return NO;
+}
+
 - (BOOL) pollUntil: (int)milliseconds within: (NSArray*)contexts
 {
   GSRunLoopThreadInfo   *threadInfo = GSRunLoopInfoForThread(nil);
@@ -742,6 +764,8 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 	    {
 	      case ET_EDESC: 
 		fd = (int)(intptr_t)info->data;
+		if (!selectableFd(fd, info))
+		  break;
 		if (fd > fdEnd)
 		  fdEnd = fd;
 		FD_SET (fd, &exception_fds);
@@ -750,6 +774,8 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 
 	      case ET_RDESC: 
 		fd = (int)(intptr_t)info->data;
+		if (!selectableFd(fd, info))
+		  break;
 		if (fd > fdEnd)
 		  fdEnd = fd;
 		FD_SET (fd, &read_fds);
@@ -758,6 +784,8 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 
 	      case ET_WDESC: 
 		fd = (int)(intptr_t)info->data;
+		if (!selectableFd(fd, info))
+		  break;
 		if (fd > fdEnd)
 		  fdEnd = fd;
 		FD_SET (fd, &write_fds);
@@ -786,6 +814,8 @@ static void setPollfd(int fd, int event, GSRunLoopCtxt *ctxt)
 		  while (port_fd_count--)
 		    {
 		      fd = port_fd_array[port_fd_count];
+		      if (!selectableFd(fd, info))
+			continue;
 		      if (fd > fdEnd)
 			fdEnd = fd;
 		      FD_SET (fd, &read_fds);
