@@ -38,6 +38,28 @@
 #    include <objc/objc-arc.h>
 #    define ARC_RUNTIME 1
 #  endif
+#elif GS_OBJC4_RUNTIME
+/* objc4 owns -autorelease (runtime/NSObject.mm): it puts the object in objc4's
+ * own AutoreleasePoolPage, never in this class's arrays. So the pools must be
+ * objc4's too, pushed and popped as with libobjc2's ARC runtime below;
+ * otherwise draining a pool released nothing and every autoreleased object
+ * leaked (on the Pi, every NSMessagePort connection a GUI app accepted stayed
+ * open until the app ran out of descriptors). objc4 keeps no per-object
+ * autorelease counts, which only the double-release check reads.
+ * +addObject: puts the object in the page with _objc_rootAutorelease, not
+ * objc_autorelease: for a class with its own retain/release, objc_autorelease
+ * sends -autorelease, and NSProxy's -autorelease is +addObject: (unbounded
+ * recursion for every distributed-objects proxy). The pop still releases it
+ * with -release. */
+OBJC_EXPORT void *objc_autoreleasePoolPush(void);
+OBJC_EXPORT void objc_autoreleasePoolPop(void *context);
+OBJC_EXPORT id _objc_rootAutorelease(id obj);
+#  define objc_autorelease(obj) _objc_rootAutorelease(obj)
+static inline unsigned
+objc_arc_autorelease_count_for_object_np(id anObject) { return 0; }
+static inline unsigned
+objc_arc_autorelease_count_np(void) { return 0; }
+#  define ARC_RUNTIME 1
 #endif
 
 
@@ -279,7 +301,7 @@ pop_pool_from_cache(struct autorelease_thread_vars *tv)
   if (autorelease_enabled)
     objc_autorelease(anObj);
 }
-- (void) emptyPool
+- (void) _popPool
 {
   struct autorelease_thread_vars *tv = ARP_THREAD_VARS;
 
@@ -289,6 +311,15 @@ pop_pool_from_cache(struct autorelease_thread_vars *tv)
     }
   objc_autoreleasePoolPop(_released);
   tv->current_pool = self;
+}
+/* The pool stays in use after -emptyPool (NSRunLoop empties one long-lived
+ * pool per iteration), so it needs a new runtime pool to collect into: popping
+ * the old token again is a bad pop, which objc4 reports and aborts on. Only
+ * -dealloc pops without pushing again. */
+- (void) emptyPool
+{
+  [self _popPool];
+  _released = objc_autoreleasePoolPush();
 }
 /**
  * Indicate to the runtime that we have an ARC-compatible implementation of
@@ -593,7 +624,11 @@ pop_pool_from_cache(struct autorelease_thread_vars *tv)
                   format: @"NSAutoreleasePool -dealloc of deallocated pool"];
     }
 
+#ifdef ARC_RUNTIME
+  [self _popPool];
+#else
   [self emptyPool];
+#endif
   NSAssert(0 == _released_count, NSInternalInconsistencyException);
 
   /* Remove self from the linked list of pools in use.
